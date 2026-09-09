@@ -1,45 +1,77 @@
-# Python
+# ============================================
+# MedIntel AI — .gitignore
+# ============================================
+
+# ----- Python -----
 __pycache__/
 *.py[cod]
 *.pyo
 .venv/
 venv/
 env/
+*.egg-info/
+dist/
+build/
 
-# Environment variables / secrets
+# ----- Environment variables / secrets -----
 .env
 .env.*
 !.env.example
 
-# ML artifacts
+# ----- ML artifacts -----
 *.joblib
 *.pkl
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.onnx
+*.tflite
+ml/models/saved/
+ml/data/raw/
+ml/data/processed/
 
-# Jupyter
+# ----- Jupyter -----
 .ipynb_checkpoints/
 
-# Flutter
+# ----- Flutter -----
 mobile/.dart_tool/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
 mobile/.packages
 mobile/build/
-mobile/.dart_tool/
+mobile/.metadata
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/ios/Pods/
+mobile/ios/.symlinks/
 
-# IDE
+# ----- IDE -----
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# OS
+# ----- OS -----
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Logs
+# ----- Logs -----
 *.log
 
-# Temporary files
+# ----- Temporary files -----
 *.tmp
 *.temp
 
-# Generated files
+# ----- Generated reports -----
 reports/generated_summaries/
+
+# ----- OCR / Handwriting temp -----
+ocr/temp/
+handwriting/temp/
+
+# ----- Database files -----
+*.db
+*.sqlite3
+!database/schema/*.sql
