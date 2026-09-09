@@ -92,6 +92,8 @@ class TrainingConfig:
     weight_decay: float = 0.01
     num_train_epochs: int = 8
     warmup_ratio: float = 0.1
+    max_grad_norm: float = 1.0
+    max_steps: Optional[int] = None
     fp16: bool = True
     early_stopping_patience: int = 2
     metric_for_best_model: str = "cer"  # Validation Character Error Rate

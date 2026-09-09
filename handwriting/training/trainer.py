@@ -157,23 +157,50 @@ class TrOCRTrainer:
         self.log_step(config_record)
         logger.info("Starting TrOCR training with effective batch size %d", self.train_config.effective_batch_size)
 
+        # 2. Setup DataLoader with deterministic shuffling
+        generator = torch.Generator().manual_seed(self.train_config.seed)
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=self.train_config.per_device_train_batch_size,
+            shuffle=True,
+            generator=generator,
+            collate_fn=lambda batch: batch[0],
+        )
+
         best_val_cer = float("inf")
         patience_counter = 0
         best_checkpoint_path = None
 
-        scaler = torch.cuda.amp.GradScaler(enabled=(self.train_config.fp16 and device == "cuda"))
+        scaler = torch.amp.GradScaler("cuda", enabled=(self.train_config.fp16 and device == "cuda"))
         optimizer = torch.optim.AdamW(
             model.parameters(),
             lr=self.train_config.learning_rate,
             weight_decay=self.train_config.weight_decay,
         )
 
+        # 3. Setup linear warmup scheduler
+        from transformers import get_linear_schedule_with_warmup
+        total_training_steps = (
+            self.train_config.max_steps
+            if self.train_config.max_steps is not None
+            else (len(train_loader) * self.train_config.num_train_epochs) // max(self.train_config.gradient_accumulation_steps, 1)
+        )
+        num_warmup_steps = int(total_training_steps * self.train_config.warmup_ratio)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=num_warmup_steps,
+            num_training_steps=max(total_training_steps, 1),
+        )
+
+        optimizer_steps = 0
+        early_stopped = False
+
         for epoch in range(1, self.train_config.num_train_epochs + 1):
             epoch_loss = 0.0
             steps = 0
             optimizer.zero_grad()
 
-            for step, batch_item in enumerate(train_dataset):
+            for step, batch_item in enumerate(train_loader):
                 # Word-level forward pass with AMP mixed precision
                 img = batch_item["image"]
                 label_text = batch_item["transcription"]
@@ -188,7 +215,7 @@ class TrOCRTrainer:
                 ).input_ids.to(device)
                 labels[labels == self.trocr.processor.tokenizer.pad_token_id] = -100
 
-                with torch.cuda.amp.autocast(enabled=(self.train_config.fp16 and device == "cuda")):
+                with torch.amp.autocast("cuda", enabled=(self.train_config.fp16 and device == "cuda")):
                     outputs = model(pixel_values=pixel_values, labels=labels)
                     loss = outputs.loss / self.train_config.gradient_accumulation_steps
 
@@ -196,10 +223,22 @@ class TrOCRTrainer:
                 epoch_loss += loss.item() * self.train_config.gradient_accumulation_steps
                 steps += 1
 
-                if (step + 1) % self.train_config.gradient_accumulation_steps == 0 or (step + 1) == len(train_dataset):
+                if (step + 1) % self.train_config.gradient_accumulation_steps == 0 or (step + 1) == len(train_loader):
+                    if self.train_config.fp16 and device == "cuda":
+                        scaler.unscale_(optimizer)
+                    if self.train_config.max_grad_norm > 0:
+                        torch.nn.utils.clip_grad_norm_(
+                            model.parameters(),
+                            max_norm=self.train_config.max_grad_norm,
+                        )
                     scaler.step(optimizer)
                     scaler.update()
+                    scheduler.step()
                     optimizer.zero_grad()
+                    optimizer_steps += 1
+
+                    if self.train_config.max_steps and optimizer_steps >= self.train_config.max_steps:
+                        break
 
             avg_train_loss = epoch_loss / max(steps, 1)
 
@@ -236,6 +275,9 @@ class TrOCRTrainer:
                         "best_val_cer": best_val_cer,
                     })
                     break
+
+            if self.train_config.max_steps and optimizer_steps >= self.train_config.max_steps:
+                break
 
         return {
             "status": "complete",
