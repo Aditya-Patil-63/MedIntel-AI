@@ -109,7 +109,7 @@ MedIntel-AI/
 | 1     | Project Foundation                | ✅ Complete     |
 | 2     | Backend Setup                     | ✅ Complete     |
 | 3     | Data Collection & Preparation     | ✅ Complete     |
-| 4     | PDF & OCR Pipeline                | ⬜ Not Started  |
+| 4     | PDF & OCR Pipeline                | ✅ Complete     |
 | 5     | Handwriting Recognition           | ⬜ Not Started  |
 | 6     | Medical Reference Analysis        | ⬜ Not Started  |
 | 7     | ML Risk Models                    | ⬜ Not Started  |
@@ -142,6 +142,12 @@ The following exact three public/academic datasets have been selected and verifi
 
 ## Project Status
 
-**Current Phase: 3 — Data Collection & Preparation**
+**Current Phase: 4 — PDF & OCR Pipeline (Complete)**
 
-Selected and verified three clinical datasets (Pima Diabetes, UCI Cleveland Heart Disease, UCI Chronic Kidney Disease). Created external dataset storage architecture (`MEDINTEL_DATA_DIR`), dataset metadata, source documentation with DOIs, data quality report, inspection scripts, reproducible preparation scripts, and validation tests. ML models have NOT been trained yet (deferred to the ML Model Development phase).
+Implemented a modular document extraction pipeline in `ocr/`:
+- `pdfplumber`-based digital PDF text extraction with page preservation and scanned PDF detection.
+- Pluggable OCR adapter architecture (`BaseOCREngine`) with `TesseractAdapter` and lazy-loaded `EasyOCRAdapter`.
+- `DocumentProcessor` routing decision layer enforcing 10MB size limits and allowed file types (`.pdf`, `.png`, `.jpg`, `.jpeg`, `.tiff`, `.bmp`, `.webp`).
+- FastAPI `POST /api/v1/extract` endpoint returning intermediate `DocumentExtractionResult` with mandatory medical safety disclaimer.
+- Full test suite in `tests/test_phase4_ocr.py` using pure-Python synthetic PDF/image fixtures (55/55 total project tests passing).
+- Phase 3 datasets in `D:\MedIntel-Datasets\` remain untouched. No ML models, no GenAI, and no Flutter implemented.

@@ -7,6 +7,7 @@ Phase 2: Only the health-check endpoint is active.
 
 from fastapi import FastAPI
 
+from app.api.extraction import router as extraction_router
 from app.api.health import router as health_router
 from app.core.config import settings
 
@@ -31,6 +32,7 @@ def create_app() -> FastAPI:
 
     # Register routers
     application.include_router(health_router)
+    application.include_router(extraction_router)
 
     return application
 

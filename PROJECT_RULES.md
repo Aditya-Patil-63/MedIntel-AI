@@ -183,40 +183,44 @@ MedIntel-AI/
 - Unit tests for preparation utilities (`tests/test_phase3_data.py`)
 - *Note: ML models are NOT trained in this phase (deferred to Phase 7).*
 
-### Phase 4 — PDF & OCR Pipeline
-- pdfplumber integration for digital PDFs
-- EasyOCR / Tesseract integration for scanned documents
-- Printed prescription text extraction
-- Structured data output (JSON format)
-- Unit tests for extraction pipeline
+### Phase 4 — PDF & OCR Pipeline ✅
+- pdfplumber integration for digital/native PDF text extraction
+- Pluggable OCR engine adapter architecture (`BaseOCREngine`)
+- Tesseract adapter (`pytesseract`) with availability checks and confidence calculation
+- EasyOCR adapter (`easyocr`) with lazy loading to avoid heavy dependencies at startup
+- `DocumentProcessor` routing decision layer enforcing 10MB limit and format validation
+- Structured extraction schema (`DocumentExtractionResult`, `PageExtraction`, `SourceType`)
+- FastAPI endpoint `POST /api/v1/extract` with privacy-preserving logging
+- Mandatory medical safety disclaimer on all extraction responses
+- Comprehensive unit and integration test suite (`tests/test_phase4_ocr.py`)
 
-### Phase 4 — Handwriting Recognition
+### Phase 5 — Handwriting Recognition
 - TrOCR model setup and evaluation
 - Handwritten prescription recognition pipeline
 - Integration with the OCR module
 - Testing with sample handwriting images
 
-### Phase 5 — Medical Reference Analysis
+### Phase 6 — Medical Reference Analysis
 - Deterministic reference-range lookup system
 - Low / Normal / High / Critical classification
 - Reference-range data from verified medical sources
 - Unit tests for classification logic
 
-### Phase 6 — ML Risk Models
+### Phase 7 — ML Risk Models
 - Dataset acquisition (public medical datasets)
 - Data preprocessing and feature engineering
 - Model training: Diabetes, Heart Disease, Kidney Disease
 - Model evaluation and validation
 - Model serialization and inference API
 
-### Phase 7 — Generative AI Integration
+### Phase 8 — Generative AI Integration
 - Claude API integration
 - Prompt engineering for medical explanations
 - Simple-language explanation generation
 - Safety guardrails and disclaimer injection
 - Multilingual output: English, Hindi, Marathi, Gujarati
 
-### Phase 8 — Flutter Mobile App
+### Phase 9 — Flutter Mobile App
 - Flutter project initialization
 - Camera capture and PDF upload UI
 - API integration with backend
@@ -225,14 +229,14 @@ MedIntel-AI/
 - Report history and downloadable summaries
 - Multilingual UI support
 
-### Phase 9 — Integration & Testing
+### Phase 10 — Integration & Testing
 - End-to-end pipeline integration
 - Comprehensive testing (unit, integration, UI)
 - Performance optimization
 - Error handling and edge cases
 - User acceptance testing
 
-### Phase 10 — Documentation & Deployment
+### Phase 11 — Documentation & Deployment
 - Complete documentation
 - Deployment configuration
 - Demo preparation
