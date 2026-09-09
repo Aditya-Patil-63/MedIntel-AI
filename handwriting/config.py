@@ -22,6 +22,25 @@ def get_phase5_derived_dir() -> Path:
     return get_data_dir() / "handwriting" / "phase5_derived"
 
 
+def get_model_cache_dir() -> Path:
+    """Return path to project model cache directory on D:."""
+    repo_root = Path(__file__).resolve().parent.parent
+    cache_dir = repo_root / "model_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+def configure_hf_cache() -> Path:
+    r"""Configure HF_HOME environment variable to use D:\MedIntel AI\model_cache."""
+    cache_dir = get_model_cache_dir()
+    os.environ["HF_HOME"] = str(cache_dir.resolve())
+    return cache_dir
+
+
+# Auto-configure HF_HOME on D:
+configure_hf_cache()
+
+
 @dataclass
 class ModelConfig:
     """TrOCR model architecture configuration.

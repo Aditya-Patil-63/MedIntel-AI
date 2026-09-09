@@ -58,11 +58,27 @@ class TrOCRModule:
         self._device = device
 
         if self._processor is None:
-            self._processor = TrOCRProcessor.from_pretrained(self.model_name)
+            try:
+                self._processor = TrOCRProcessor.from_pretrained(self.model_name)
+            except Exception:
+                from transformers import AutoImageProcessor, XLMRobertaTokenizer
+                img_proc = AutoImageProcessor.from_pretrained(self.model_name)
+                tokenizer = XLMRobertaTokenizer.from_pretrained(self.model_name)
+                self._processor = TrOCRProcessor(image_processor=img_proc, tokenizer=tokenizer)
 
         if self._model is None:
             self._model = VisionEncoderDecoderModel.from_pretrained(self.model_name)
             self._model.to(self._device)
+
+            # Ensure required token attributes are configured for Transformers 5 forward passes with labels
+            if getattr(self._model.config, "pad_token_id", None) is None:
+                self._model.config.pad_token_id = getattr(self.processor.tokenizer, "pad_token_id", 1)
+            if getattr(self._model.config, "decoder_start_token_id", None) is None:
+                decoder_cfg = getattr(self._model.config, "decoder", None)
+                self._model.config.decoder_start_token_id = (
+                    getattr(decoder_cfg, "decoder_start_token_id", None)
+                    or getattr(self.processor.tokenizer, "cls_token_id", 2)
+                )
 
             if self.config.use_gradient_checkpointing and hasattr(self._model, "gradient_checkpointing_enable"):
                 self._model.gradient_checkpointing_enable()

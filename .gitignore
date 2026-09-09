@@ -28,6 +28,7 @@ build/
 *.onnx
 *.tflite
 ml/models/saved/
+model_cache/
 
 # ----- Datasets (external only - NEVER commit to Git repository) -----
 *.csv
