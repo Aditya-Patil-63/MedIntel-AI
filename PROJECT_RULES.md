@@ -168,7 +168,22 @@ MedIntel-AI/
 - Health-check endpoint
 - Basic project scaffolding
 
-### Phase 3 — PDF & OCR Pipeline
+### Phase 3 — Data Collection & Preparation ✅
+- Dataset research, selection, and verification for 3 risk prediction tasks:
+  1. **Diabetes:** Pima Indians Diabetes Database (NIDDK, accessible via Kaggle / OpenML)
+  2. **Heart Disease:** UCI Heart Disease Dataset (Cleveland subset, processed, DOI: 10.24432/C52P4X)
+  3. **Kidney Disease:** UCI Chronic Kidney Disease Dataset (Apollo Hospitals, DOI: 10.24432/C5G020)
+- Policy enforcement: Datasets strictly stored outside Git repository (`MEDINTEL_DATA_DIR`)
+- Dataset source documentation (`ml/data/DATASET_SOURCES.md`)
+- Dataset setup guide (`ml/data/DATASET_SETUP.md`)
+- Dataset metadata (`ml/data/metadata/`)
+- Data quality report and leakage prevention strategy (`ml/data/DATA_QUALITY_REPORT.md`)
+- Reproducible inspection scripts (`ml/scripts/inspect_*.py`)
+- Reproducible deterministic preparation scripts (`ml/scripts/prepare_*.py`)
+- Unit tests for preparation utilities (`tests/test_phase3_data.py`)
+- *Note: ML models are NOT trained in this phase (deferred to Phase 7).*
+
+### Phase 4 — PDF & OCR Pipeline
 - pdfplumber integration for digital PDFs
 - EasyOCR / Tesseract integration for scanned documents
 - Printed prescription text extraction

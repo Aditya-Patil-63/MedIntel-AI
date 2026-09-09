@@ -104,20 +104,33 @@ MedIntel-AI/
 
 ## Phase Roadmap
 
-| Phase | Name                        | Status         |
-|-------|-----------------------------|----------------|
-| 1     | Project Foundation          | ✅ Complete     |
-| 2     | Backend Setup               | ✅ Complete     |
-| 3     | PDF & OCR Pipeline          | ⬜ Not Started  |
-| 4     | Handwriting Recognition     | ⬜ Not Started  |
-| 5     | Medical Reference Analysis  | ⬜ Not Started  |
-| 6     | ML Risk Models              | ⬜ Not Started  |
-| 7     | Generative AI Integration   | ⬜ Not Started  |
-| 8     | Flutter Mobile App          | ⬜ Not Started  |
-| 9     | Integration & Testing       | ⬜ Not Started  |
-| 10    | Documentation & Deployment  | ⬜ Not Started  |
+| Phase | Name                              | Status         |
+|-------|-----------------------------------|----------------|
+| 1     | Project Foundation                | ✅ Complete     |
+| 2     | Backend Setup                     | ✅ Complete     |
+| 3     | Data Collection & Preparation     | ✅ Complete     |
+| 4     | PDF & OCR Pipeline                | ⬜ Not Started  |
+| 5     | Handwriting Recognition           | ⬜ Not Started  |
+| 6     | Medical Reference Analysis        | ⬜ Not Started  |
+| 7     | ML Risk Models                    | ⬜ Not Started  |
+| 8     | Generative AI Integration         | ⬜ Not Started  |
+| 9     | Flutter Mobile App                | ⬜ Not Started  |
+| 10    | Integration & Testing             | ⬜ Not Started  |
+| 11    | Documentation & Deployment        | ⬜ Not Started  |
 
 See [PROJECT_RULES.md](PROJECT_RULES.md) for detailed phase descriptions and all project rules.
+
+---
+
+## Datasets Selected (Phase 3)
+
+The following exact three public/academic datasets have been selected and verified for the project's risk-prediction tasks:
+
+1. **Diabetes:** Pima Indians Diabetes Database (NIDDK, accessible via Kaggle / OpenML)
+2. **Heart Disease:** UCI Heart Disease Dataset — Cleveland processed subset (DOI: `10.24432/C52P4X`)
+3. **Kidney Disease:** UCI Chronic Kidney Disease Dataset (Apollo Hospitals, DOI: `10.24432/C5G020`)
+
+*Important:* Actual dataset files are strictly kept outside the Git repository. Documentation, metadata, and reproducible preparation scripts are located in `ml/data/` and `ml/scripts/`.
 
 ---
 
@@ -129,6 +142,6 @@ See [PROJECT_RULES.md](PROJECT_RULES.md) for detailed phase descriptions and all
 
 ## Project Status
 
-**Current Phase: 2 — Backend & Database Foundation**
+**Current Phase: 3 — Data Collection & Preparation**
 
-FastAPI backend initialized with health-check endpoint. SQLite database schema designed with 7 tables (users, reports, test_results, predictions, prescriptions, medicines, summaries). All Phase 2 tests passing.
+Selected and verified three clinical datasets (Pima Diabetes, UCI Cleveland Heart Disease, UCI Chronic Kidney Disease). Created external dataset storage architecture (`MEDINTEL_DATA_DIR`), dataset metadata, source documentation with DOIs, data quality report, inspection scripts, reproducible preparation scripts, and validation tests. ML models have NOT been trained yet (deferred to the ML Model Development phase).

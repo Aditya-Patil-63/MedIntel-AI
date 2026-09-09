@@ -28,8 +28,24 @@ build/
 *.onnx
 *.tflite
 ml/models/saved/
+
+# ----- Datasets (external only - NEVER commit to Git repository) -----
+*.csv
+*.tsv
+*.arff
+*.data
+*.names
+*.parquet
+*.feather
+*.xlsx
+*.xls
 ml/data/raw/
 ml/data/processed/
+data/raw/
+data/processed/
+datasets/
+raw_data/
+processed_data/
 
 # ----- Jupyter -----
 .ipynb_checkpoints/
