@@ -1,0 +1,18 @@
+# MedIntel AI — Phase 5: Handwriting Recognition Dependencies
+#
+# Hardware target: NVIDIA GeForce RTX 3050 Laptop GPU (4 GB VRAM)
+# Base model: microsoft/trocr-small-handwritten (~62M parameters)
+#
+# NOTE: Do NOT install automatically without explicit user approval.
+# To install with CUDA support:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#   pip install -r handwriting/requirements.txt
+
+torch>=2.2.0
+torchvision>=0.17.0
+transformers>=4.40.0
+accelerate>=0.28.0
+jiwer>=3.0.3
+pillow>=10.0.0
+pandas>=2.2.0
+numpy>=1.26.0

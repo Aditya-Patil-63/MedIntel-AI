@@ -110,7 +110,7 @@ MedIntel-AI/
 | 2     | Backend Setup                     | ✅ Complete     |
 | 3     | Data Collection & Preparation     | ✅ Complete     |
 | 4     | PDF & OCR Pipeline                | ✅ Complete     |
-| 5     | Handwriting Recognition           | ⬜ Not Started  |
+| 5     | Handwriting Recognition           | 🚧 In Progress (Architecture & Tests Implemented) |
 | 6     | Medical Reference Analysis        | ⬜ Not Started  |
 | 7     | ML Risk Models                    | ⬜ Not Started  |
 | 8     | Generative AI Integration         | ⬜ Not Started  |
@@ -122,15 +122,20 @@ See [PROJECT_RULES.md](PROJECT_RULES.md) for detailed phase descriptions and all
 
 ---
 
-## Datasets Selected (Phase 3)
+## Datasets Selected (Phase 3 & Phase 5)
 
-The following exact three public/academic datasets have been selected and verified for the project's risk-prediction tasks:
+The following datasets have been selected, verified, and audited:
 
-1. **Diabetes:** Pima Indians Diabetes Database (NIDDK, accessible via Kaggle / OpenML)
-2. **Heart Disease:** UCI Heart Disease Dataset — Cleveland processed subset (DOI: `10.24432/C52P4X`)
-3. **Kidney Disease:** UCI Chronic Kidney Disease Dataset (Apollo Hospitals, DOI: `10.24432/C5G020`)
+1. **Diabetes Risk:** Pima Indians Diabetes Database (NIDDK, accessible via Kaggle / OpenML)
+2. **Heart Disease Risk:** UCI Heart Disease Dataset — Cleveland processed subset (DOI: `10.24432/C52P4X`)
+3. **Kidney Disease Risk:** UCI Chronic Kidney Disease Dataset (Apollo Hospitals, DOI: `10.24432/C5G020`)
+4. **Handwriting Recognition (Phase 5):**
+   - **RxHandBD**: 4,017 Train / 446 Val / 1,115 Test (official 1,115 test set preserved untouched)
+   - **Doctor's Handwritten Prescription BD**: 3,084 Train / 661 Val / 661 Test (274 duplicate copies removed)
+   - **Combined Primary**: 7,101 Train / 1,107 Val / 1,776 Test (9,984 unique real handwriting crops)
+   - *Note:* `chinmays18` synthetic data is strictly excluded from primary training.
 
-*Important:* Actual dataset files are strictly kept outside the Git repository. Documentation, metadata, and reproducible preparation scripts are located in `ml/data/` and `ml/scripts/`.
+*Important:* Actual dataset files are strictly kept outside the Git repository under `MEDINTEL_DATA_DIR`.
 
 ---
 
@@ -142,12 +147,15 @@ The following exact three public/academic datasets have been selected and verifi
 
 ## Project Status
 
-**Current Phase: 4 — PDF & OCR Pipeline (Complete)**
+**Current Phase: 5 — Handwriting Recognition (Architecture & Tests Implemented)**
 
-Implemented a modular document extraction pipeline in `ocr/`:
-- `pdfplumber`-based digital PDF text extraction with page preservation and scanned PDF detection.
-- Pluggable OCR adapter architecture (`BaseOCREngine`) with `TesseractAdapter` and lazy-loaded `EasyOCRAdapter`.
-- `DocumentProcessor` routing decision layer enforcing 10MB size limits and allowed file types (`.pdf`, `.png`, `.jpg`, `.jpeg`, `.tiff`, `.bmp`, `.webp`).
-- FastAPI `POST /api/v1/extract` endpoint returning intermediate `DocumentExtractionResult` with mandatory medical safety disclaimer.
-- Full test suite in `tests/test_phase4_ocr.py` using pure-Python synthetic PDF/image fixtures (55/55 total project tests passing).
-- Phase 3 datasets in `D:\MedIntel-Datasets\` remain untouched. No ML models, no GenAI, and no Flutter implemented.
+- **Handwriting Recognition Pipeline (`handwriting/`)**:
+  - Word/line level crop architecture established around `microsoft/trocr-small-handwritten`.
+  - Aspect-ratio preserving transforms (`AspectRatioPreservingResize`) with white letterbox padding.
+  - Decoded text prediction metrics (CER, WER, Exact Match in `handwriting/evaluation/metrics.py`).
+  - Disaggregated benchmark evaluation runner (`handwriting/evaluation/evaluate.py`).
+  - Memory-safe training engine with gradient accumulation (effective batch size 16) and gradient checkpointing for 4GB VRAM.
+  - Strict test-set isolation in trainer (validation-only checkpointing and early stopping).
+  - TrOCREngineAdapter implementing `BaseOCREngine` for future OCR pipeline integration.
+  - 18 new Phase 5 unit tests (73/73 total project tests passing).
+  - TrOCR weights download and full model training deferred pending explicit authorization.

@@ -194,11 +194,18 @@ MedIntel-AI/
 - Mandatory medical safety disclaimer on all extraction responses
 - Comprehensive unit and integration test suite (`tests/test_phase4_ocr.py`)
 
-### Phase 5 — Handwriting Recognition
-- TrOCR model setup and evaluation
-- Handwritten prescription recognition pipeline
-- Integration with the OCR module
-- Testing with sample handwriting images
+### Phase 5 — Handwriting Recognition 🚧 (Architecture & Tests Implemented)
+- External dataset curation completed: 9,984 real handwriting images (7,101 train / 1,107 val / 1,776 test)
+- RxHandBD official test split preserved (1,115); Doctor BD deduplicated (661 val / 661 test); chinmays18 excluded
+- Architecture established around `microsoft/trocr-small-handwritten` for word/line crop recognition
+- Aspect-ratio preserving resizing with white letterbox padding (`handwriting/data/transforms.py`)
+- Decoded text prediction metric calculation (CER, WER, Exact Match in `handwriting/evaluation/metrics.py`)
+- Disaggregated benchmark evaluation runner (`handwriting/evaluation/evaluate.py`)
+- Memory-safe training engine with gradient accumulation (effective batch size 16) and gradient checkpointing
+- Strict test-set isolation in trainer (validation-only checkpointing and early stopping)
+- TrOCREngineAdapter implementing `BaseOCREngine` for future OCR pipeline integration
+- Comprehensive unit test suite (`tests/test_phase5_handwriting.py`) passing with zero GPU/weights requirement
+- *Note: TrOCR weights download and full training deferred pending explicit authorization.*
 
 ### Phase 6 — Medical Reference Analysis
 - Deterministic reference-range lookup system
