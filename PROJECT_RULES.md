@@ -194,18 +194,18 @@ MedIntel-AI/
 - Mandatory medical safety disclaimer on all extraction responses
 - Comprehensive unit and integration test suite (`tests/test_phase4_ocr.py`)
 
-### Phase 5 — Handwriting Recognition 🚧 (Architecture & Tests Implemented)
+### Phase 5 — Handwriting Recognition ✅
 - External dataset curation completed: 9,984 real handwriting images (7,101 train / 1,107 val / 1,776 test)
 - RxHandBD official test split preserved (1,115); Doctor BD deduplicated (661 val / 661 test); chinmays18 excluded
 - Architecture established around `microsoft/trocr-small-handwritten` for word/line crop recognition
 - Aspect-ratio preserving resizing with white letterbox padding (`handwriting/data/transforms.py`)
 - Decoded text prediction metric calculation (CER, WER, Exact Match in `handwriting/evaluation/metrics.py`)
 - Disaggregated benchmark evaluation runner (`handwriting/evaluation/evaluate.py`)
-- Memory-safe training engine with gradient accumulation (effective batch size 16) and gradient checkpointing
-- Strict test-set isolation in trainer (validation-only checkpointing and early stopping)
-- TrOCREngineAdapter implementing `BaseOCREngine` for future OCR pipeline integration
-- Comprehensive unit test suite (`tests/test_phase5_handwriting.py`) passing with zero GPU/weights requirement
-- *Note: TrOCR weights download and full training deferred pending explicit authorization.*
+- Memory-safe training engine with gradient accumulation (effective batch size 8), FP16, and gradient checkpointing
+- Native 2,000-optimizer-step training executed under 4 GB VRAM limit (best checkpoint validation CER: 6.47%, exact match: 84.50%)
+- Official held-out evaluation completed across 1,776 test samples (Combined: 67.68% exact match, 20.34% CER; Doctor BD: 91.83% exact match, 5.55% CER; RxHandBD: 53.36% exact match, 28.78% CER)
+- Comprehensive test suite passing (73/73 tests)
+- Full documentation in `docs/PHASE5_HANDWRITING_RESULTS.md`
 
 ### Phase 6 — Medical Reference Analysis
 - Deterministic reference-range lookup system

@@ -10,8 +10,21 @@
 
 Phase 5 implements a deep learning handwriting recognition architecture using **Microsoft TrOCR (`microsoft/trocr-small-handwritten`)** optimized for word and line-level medical prescription crops.
 
-- **Status**: Pipeline architecture and unit tests implemented. Training and weight downloading deferred pending user authorization.
-- **Hardware Profile**: Configured for NVIDIA GeForce RTX 3050 Laptop GPU (**4 GB VRAM**) using conservative batch sizing, gradient accumulation, and gradient checkpointing.
+- **Status**: **Complete & Evaluated**. Native 2,000-step training completed; official held-out test evaluation completed.
+- **Hardware Profile**: Configured and executed on an NVIDIA GeForce RTX 3050 Laptop GPU (**4 GB VRAM**) using batch size 1, gradient accumulation 8 (effective batch size 8), FP16 mixed precision, and gradient checkpointing.
+
+### 1.1 Phase 5 Official Results Summary
+
+Full evaluation report available at [docs/PHASE5_HANDWRITING_RESULTS.md](../docs/PHASE5_HANDWRITING_RESULTS.md).
+
+- **Combined Held-Out Test Set (1,776 samples)**:
+  - **Case-Insensitive Exact Match**: **67.68%** (1,202 / 1,776 exact matches)
+  - **Character Error Rate (CER)**: **20.34%**
+  - **Word Error Rate (WER)**: **43.89%**
+  - **Case-Sensitive Exact Match**: 59.07% (1,049 / 1,776 exact matches)
+- **Doctor Prescription BD Test Split (661 samples)**: **5.55% CER**, **8.06% WER**, **91.83% Exact Match**.
+- **RxHandBD Test Split (1,115 samples)**: **28.78% CER**, **63.30% WER**, **53.36% Exact Match**.
+- **Frozen Checkpoint**: `D:\MedIntel-Datasets\handwriting\phase5_training_output_2000_native\best_checkpoint` (SHA-256: `189f9695e33e8229805940cbece72a12c57df4ff638e29d21769c15840469322`).
 
 ---
 

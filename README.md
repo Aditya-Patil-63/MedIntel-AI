@@ -110,7 +110,7 @@ MedIntel-AI/
 | 2     | Backend Setup                     | ✅ Complete     |
 | 3     | Data Collection & Preparation     | ✅ Complete     |
 | 4     | PDF & OCR Pipeline                | ✅ Complete     |
-| 5     | Handwriting Recognition           | 🚧 In Progress (Architecture & Tests Implemented) |
+| 5     | Handwriting Recognition           | ✅ Complete     |
 | 6     | Medical Reference Analysis        | ⬜ Not Started  |
 | 7     | ML Risk Models                    | ⬜ Not Started  |
 | 8     | Generative AI Integration         | ⬜ Not Started  |
@@ -147,15 +147,12 @@ The following datasets have been selected, verified, and audited:
 
 ## Project Status
 
-**Current Phase: 5 — Handwriting Recognition (Architecture & Tests Implemented)**
+**Current Phase: 5 Complete — Ready for Phase 6 (Medical Reference Analysis)**
 
 - **Handwriting Recognition Pipeline (`handwriting/`)**:
-  - Word/line level crop architecture established around `microsoft/trocr-small-handwritten`.
-  - Aspect-ratio preserving transforms (`AspectRatioPreservingResize`) with white letterbox padding.
-  - Decoded text prediction metrics (CER, WER, Exact Match in `handwriting/evaluation/metrics.py`).
-  - Disaggregated benchmark evaluation runner (`handwriting/evaluation/evaluate.py`).
-  - Memory-safe training engine with gradient accumulation (effective batch size 16) and gradient checkpointing for 4GB VRAM.
-  - Strict test-set isolation in trainer (validation-only checkpointing and early stopping).
-  - TrOCREngineAdapter implementing `BaseOCREngine` for future OCR pipeline integration.
-  - 18 new Phase 5 unit tests (73/73 total project tests passing).
-  - TrOCR weights download and full model training deferred pending explicit authorization.
+  - Handwriting recognition pipeline implemented and evaluated using Microsoft TrOCR (`microsoft/trocr-small-handwritten`).
+  - Native 2,000-optimizer-step training executed under strict 4 GB VRAM constraints (batch size 1, gradient accumulation 8, FP16 mixed precision, gradient checkpointing).
+  - Official held-out evaluation achieved **67.68% case-insensitive exact match**, **20.34% CER**, and **43.89% WER** across 1,776 combined test samples.
+  - Dataset-specific performance: **Doctor Prescription BD Test**: 5.55% CER, 8.06% WER, 91.83% Exact Match; **RxHandBD Test**: 28.78% CER, 63.30% WER, 53.36% Exact Match.
+  - Complete benchmark results, error categorization, and safety boundaries documented in [docs/PHASE5_HANDWRITING_RESULTS.md](docs/PHASE5_HANDWRITING_RESULTS.md).
+  - Full regression test suite passing (73/73 tests).
