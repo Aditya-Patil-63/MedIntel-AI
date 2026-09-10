@@ -132,6 +132,7 @@ class TestResult(Base):
     """
 
     __tablename__ = "test_results"
+    __test__ = False
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     report_id = Column(Integer, ForeignKey("reports.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -147,6 +148,9 @@ class TestResult(Base):
         comment="Deterministic classification based on reference ranges",
     )
     is_user_verified = Column(Integer, nullable=False, default=0, comment="1 if user has verified this value")
+    canonical_name = Column(String(255), nullable=True, comment="Canonical medical name of the analyte")
+    reference_source = Column(String(255), nullable=True, comment="Authoritative reference source citation")
+    analysis_status = Column(String(50), nullable=True, comment="Operational status code from reference analyzer")
     created_at = Column(DateTime, nullable=False, default=_utcnow)
 
     # Relationships
