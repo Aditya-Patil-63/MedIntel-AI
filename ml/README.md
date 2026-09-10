@@ -4,13 +4,15 @@ ML models for medical risk prediction.
 
 ## Status
 
-**Current Phase: Phase 7 — ML Risk Models (Step 3: Model Audit & Robustness Checks Complete)** ✅  
+**Current Phase: Phase 7 — ML Risk Models (Step 4: FastAPI ML Integration Complete)** ✅  
 - 5-Fold Stratified Cross-Validation on 80% train split completed across 10 candidate architectures per condition.
 - Champions deterministically selected using screening-oriented sensitivity hierarchy.
 - Champion pipelines refit on 80% train split and evaluated once on untouched 20% held-out test splits.
 - External artifacts serialized to `D:\MedIntel-Datasets\ml_models\` with SHA-256 verification.
 - Comprehensive Step 3 audit: Zero data leakage, untouched test splits, and CKD performance investigated.
-- 28 Phase 7 tests across `tests/test_phase7_ml.py` and `tests/test_phase7_audit.py`; 193 total regression tests passing.
+- Step 4 FastAPI ML Integration: Exposes safe, structured REST endpoints for Diabetes, Heart Disease, and CKD risk prediction + ML status endpoint.
+- In-memory model caching, SHA-256 integrity checks, user verification gate (`is_user_verified`), zero-imputation policy (`INSUFFICIENT_FEATURES`), and SQLite prediction persistence.
+- 48 Phase 7 tests across `tests/test_phase7_ml.py`, `tests/test_phase7_audit.py`, and `tests/test_phase7_api.py`; 213 total regression tests passing.
 
 ---
 
@@ -19,6 +21,7 @@ ML models for medical risk prediction.
 - [docs/PHASE7_ML_ARCHITECTURE.md](../docs/PHASE7_ML_ARCHITECTURE.md) — Pre-training architecture audit, leakage-safe pipeline designs, and data contracts.
 - [docs/PHASE7_ML_TRAINING.md](../docs/PHASE7_ML_TRAINING.md) — Full benchmark report, candidate CV tables, held-out test metrics, confusion matrices, and checksums.
 - [docs/PHASE7_MODEL_AUDIT.md](../docs/PHASE7_MODEL_AUDIT.md) — Step 3 model audit, robustness verification, CKD deep dive, and artifact validation.
+- [docs/PHASE7_API_INTEGRATION.md](../docs/PHASE7_API_INTEGRATION.md) — Step 4 FastAPI integration, REST endpoints, request/response schemas, caching, and safety gates.
 
 ---
 

@@ -112,7 +112,7 @@ MedIntel-AI/
 | 4     | PDF & OCR Pipeline                | ✅ Complete     |
 | 5     | Handwriting Recognition           | ✅ Complete     |
 | 6     | Medical Reference Analysis        | ✅ Complete     |
-| 7     | ML Risk Models                    | ⬜ Pending      |
+| 7     | ML Risk Models                    | 🟡 In Progress (Steps 1–4 Complete) |
 | 8     | Generative AI Integration         | ⬜ Pending      |
 | 9     | Flutter Mobile App                | ⬜ Pending      |
 | 10    | Integration & Testing             | ⬜ Pending      |
@@ -147,7 +147,17 @@ The following datasets have been selected, verified, and audited:
 
 ## Project Status
 
-**Current Phase: 6 Complete — Ready for Phase 7 (ML Risk Models)**
+**Current Phase: Phase 7 — ML Risk Models (Steps 1–4 Complete)**
+
+- **ML Risk Models & FastAPI Integration (`ml/`, `backend/app/api/ml_risk.py`, `backend/app/services/ml_risk_service.py`)**:
+  - Leakage-safe 5-fold Stratified Cross-Validation across Diabetes, Heart Disease, and Chronic Kidney Disease.
+  - Champion pipelines trained on 80% train split and evaluated on frozen 20% held-out test splits.
+  - Model artifacts externally serialized to `D:\MedIntel-Datasets\ml_models\` with SHA-256 cryptographic verification.
+  - Safe, structured FastAPI REST endpoints (`POST /api/v1/ml/diabetes-risk`, `POST /api/v1/ml/heart-risk`, `POST /api/v1/ml/kidney-risk`, `GET /api/v1/ml/status`).
+  - In-memory lazy model caching, user verification safety gate (`is_user_verified`), zero-imputation policy (`INSUFFICIENT_FEATURES`), and SQLite `Prediction` persistence.
+  - Complete integration guide documented in [docs/PHASE7_API_INTEGRATION.md](docs/PHASE7_API_INTEGRATION.md).
+  - 48 Phase 7 tests across `tests/test_phase7_ml.py`, `tests/test_phase7_audit.py`, and `tests/test_phase7_api.py`.
+
 
 - **Medical Reference Analysis (`reference/`)**:
   - Deterministic reference-range lookup engine (`reference/analyzer.py`, `reference/ranges.py`).

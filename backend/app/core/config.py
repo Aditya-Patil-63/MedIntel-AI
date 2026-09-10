@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB limit
     DEFAULT_OCR_ENGINE: str = "tesseract"
 
+    # Machine Learning Risk Models (Phase 7)
+    MEDINTEL_ML_MODELS_DIR: str = "D:\\MedIntel-Datasets\\ml_models"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

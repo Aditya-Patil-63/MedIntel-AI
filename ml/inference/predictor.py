@@ -51,7 +51,10 @@ class RiskPredictor:
 
         # Resolve artifact path
         base_dir = Path(models_base_dir or os.environ.get("MEDINTEL_DATA_DIR", "D:\\MedIntel-Datasets"))
-        self.model_dir = base_dir / "ml_models" / condition
+        if base_dir.name == "ml_models":
+            self.model_dir = base_dir / condition
+        else:
+            self.model_dir = base_dir / "ml_models" / condition
 
         self.pipeline = None
         self.metadata: Dict[str, Any] = {}
