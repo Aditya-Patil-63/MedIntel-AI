@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medintel_mobile/core/errors/api_exception.dart';
+import 'package:medintel_mobile/models/analysis/verified_snapshot.dart';
 import 'package:medintel_mobile/models/common/enums.dart';
 import 'package:medintel_mobile/models/extraction/document_extraction_result.dart';
 import 'package:medintel_mobile/models/genai/genai_explain_request.dart';
@@ -13,7 +14,6 @@ import 'package:medintel_mobile/models/ml_risk/risk_prediction_response.dart';
 import 'package:medintel_mobile/models/reference/analysis_result.dart';
 import 'package:medintel_mobile/models/reference/batch_analysis.dart';
 import 'package:medintel_mobile/models/reference/editable_measurement.dart';
-import 'package:medintel_mobile/models/reference/measurement_input.dart';
 import 'package:medintel_mobile/models/reference/parse_and_analyze.dart';
 import 'package:medintel_mobile/models/reference/patient_context.dart';
 import 'package:medintel_mobile/repositories/medical_repository.dart';
@@ -374,26 +374,44 @@ void main() {
   group('AnalysisCubit — Safety Safeguard', () {
     test('blocks analysis when isUserVerified is false', () async {
       final cubit = AnalysisCubit(repository: repository);
-
-      await cubit.runReferenceAnalysis(
-        measurements: [const MeasurementInput(testName: 'FBS', value: 100.0)],
-        isUserVerified: false,
+      final snapshot = VerifiedSnapshot(
+        measurements: const [
+          EditableMeasurement(
+            id: '1',
+            originalTestName: 'FBS',
+            testName: 'FBS',
+            value: 100.0,
+          ),
+        ],
+        patientContext: const PatientContext(),
+        isVerified: false,
       );
 
-      expect(cubit.state, isA<AnalysisError>());
-      final err = cubit.state as AnalysisError;
-      expect(err.message, contains('must be verified before analysis'));
+      await cubit.runFullAnalysis(snapshot);
+
+      expect(cubit.state.status, AnalysisStatus.failure);
+      expect(cubit.state.generalError, contains('must be confirmed and verified'));
     });
 
     test('proceeds to analysis when isUserVerified is true', () async {
       final cubit = AnalysisCubit(repository: repository);
-
-      await cubit.runReferenceAnalysis(
-        measurements: [const MeasurementInput(testName: 'FBS', value: 100.0)],
-        isUserVerified: true,
+      final snapshot = VerifiedSnapshot(
+        measurements: const [
+          EditableMeasurement(
+            id: '1',
+            originalTestName: 'FBS',
+            testName: 'FBS',
+            value: 100.0,
+          ),
+        ],
+        patientContext: const PatientContext(),
+        isVerified: true,
       );
 
-      expect(cubit.state, isA<AnalysisSuccess>());
+      await cubit.runFullAnalysis(snapshot);
+
+      expect(cubit.state.status, AnalysisStatus.success);
+      expect(cubit.state.referenceAnalysis, isNotNull);
     });
   });
 }

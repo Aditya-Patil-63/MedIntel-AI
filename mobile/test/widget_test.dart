@@ -86,8 +86,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ResultsScreen), findsOneWidget);
-    expect(find.text('Verified Report Summary'), findsOneWidget);
-    expect(find.textContaining('integrated in the upcoming Phase 9 steps'),
-        findsOneWidget);
+    expect(find.text('Statistical Disease Risk Indicators'), findsOneWidget);
+    expect(find.textContaining('This is not a medical diagnosis'),
+        findsWidgets);
   });
 }

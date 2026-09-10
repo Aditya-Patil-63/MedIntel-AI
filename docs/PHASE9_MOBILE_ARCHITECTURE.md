@@ -86,39 +86,50 @@ mobile/
 │   │   │   ├── kidney_disease_risk_request.dart
 │   │   │   ├── risk_prediction_response.dart
 │   │   │   └── ml_status_response.dart
-│   │   └── genai/
-│   │       ├── genai_explain_request.dart
-│   │       ├── genai_explain_response.dart
-│   │       └── genai_status_response.dart
+│   │   ├── genai/
+│   │   │   ├── genai_explain_request.dart
+│   │   │   ├── genai_explain_response.dart
+│   │   │   └── genai_status_response.dart
+│   │   └── analysis/
+│   │       └── verified_snapshot.dart     # Immutable snapshot of confirmed clinical measurements
 │   │
 │   ├── services/
-│   │   └── api_service.dart           # Typed interface & implementation of 10 endpoints
+│   │   ├── api_service.dart               # Typed interface & implementation of 10 endpoints
+│   │   └── feature_mapper.dart            # Pure deterministic mapping with strict null preservation
 │   │
 │   ├── repositories/
-│   │   └── medical_repository.dart    # High-level domain actions & safety enforcement
+│   │   └── medical_repository.dart        # High-level domain actions & safety enforcement
 │   │
-│   ├── state/                         # BLoC / Cubit State Management
-│   │   ├── document/                  # DocumentCubit & DocumentState
-│   │   ├── verification/              # VerificationCubit & VerificationState
-│   │   ├── analysis/                  # AnalysisCubit & AnalysisState
-│   │   └── history/                   # HistoryCubit & HistoryState
+│   ├── state/                             # BLoC / Cubit State Management
+│   │   ├── document/                      # DocumentCubit & DocumentState
+│   │   ├── verification/                  # VerificationCubit & VerificationState
+│   │   ├── analysis/                      # AnalysisCubit & AnalysisState
+│   │   └── history/                       # HistoryCubit & HistoryState
 │   │
-│   ├── widgets/                       # Reusable UI components
-│   │   ├── disclaimer_banner.dart     # Prominent non-diagnostic warning banner
-│   │   └── status_card.dart           # Subsystem health chip
+│   ├── widgets/                           # Reusable UI components
+│   │   ├── disclaimer_banner.dart         # Prominent non-diagnostic warning banner
+│   │   ├── status_card.dart               # Subsystem health chip
+│   │   ├── measurement_edit_dialog.dart   # Interactive edit/add modal
+│   │   ├── verification_status_chip.dart  # Verification badge (Unverified, Confirmed, Corrected)
+│   │   ├── reference_findings_card.dart   # Phase 6 deterministic laboratory interval card
+│   │   ├── ml_risk_card.dart              # Phase 7 risk probability & missing-feature card
+│   │   └── genai_explanation_card.dart    # Phase 8 educational explanation & multilingual selector
 │   │
-│   └── screens/                       # App views
-│       ├── home/home_screen.dart      # Main dashboard with status overview & navigation
-│       ├── upload/upload_screen.dart  # PDF & image file picker
+│   └── screens/                           # App views
+│       ├── home/home_screen.dart          # Main dashboard with status overview & navigation
+│       ├── upload/upload_screen.dart      # PDF & image file picker
 │       ├── verification/verification_screen.dart # Confirmation gate UI
-│       ├── results/results_screen.dart # Reference & ML risk display
-│       └── history/history_screen.dart # Report history placeholder
+│       ├── results/results_screen.dart    # Comprehensive 5-section results dashboard
+│       └── history/history_screen.dart    # Report history placeholder
 │
 └── test/
-    ├── models_test.dart               # Serialization / deserialization tests
-    ├── api_service_test.dart          # Error mapping & endpoint formatting tests
-    ├── cubits_test.dart               # State transitions & verification gate tests
-    └── widget_test.dart               # App shell smoke test
+    ├── models_test.dart                   # Serialization / deserialization tests
+    ├── api_service_test.dart              # Error mapping & endpoint formatting tests
+    ├── cubits_test.dart                   # Document & Verification Cubit lifecycle tests
+    ├── feature_mapper_test.dart           # Pure feature extraction & null preservation tests
+    ├── analysis_cubit_test.dart           # Multi-stage analysis orchestration & fallback tests
+    ├── results_dashboard_test.dart        # Results screen component rendering tests
+    └── widget_test.dart                   # App shell smoke test
 ```
 
 ---
@@ -230,11 +241,14 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 ## 8. Automated Verification Suite
 
 - **Static Analysis**: `flutter analyze` passes with **0 errors and 0 warnings**.
-- **Unit & Widget Tests**: 35 automated tests pass in `mobile/test/`:
+- **Unit & Widget Tests**: 51 automated tests pass in `mobile/test/`:
   - `models_test.dart`: Serialization and deserialization of all 10 endpoint request/response models.
   - `api_service_test.dart`: Dio error unwrapping, JSON serialization, and endpoint routing.
-  - `cubits_test.dart`: Ingestion file validation, extraction lifecycle, reference parsing, human-in-the-loop editing, verification gate confirmation/invalidation, and mandatory verification guard checks.
-  - `widget_test.dart`: App shell smoke test, upload screen constraints, verification review UI, and results readiness screen.
+  - `cubits_test.dart`: Document & Verification Cubit lifecycle, verification gate confirmation/invalidation, and mandatory verification guard checks.
+  - `feature_mapper_test.dart`: Pure mapping logic, demographic conversion (`M`=1.0, `F`=0.0), alias resolution, and strict `null` preservation without client imputation.
+  - `analysis_cubit_test.dart`: Multi-stage pipeline orchestration, unverified rejection, parallel execution, partial error isolation, HTTP 503 fallback, and independent language switching.
+  - `results_dashboard_test.dart`: Component rendering of reference interval badges, ML risk probabilities, `INSUFFICIENT_FEATURES` missing data cards, and GenAI explanation cards.
+  - `widget_test.dart`: App shell smoke test, upload screen constraints, verification review UI, and results dashboard.
 - **Backend Integrity**: `pytest` confirms all 259 backend tests pass with 0 regressions.
 
 ---
@@ -261,6 +275,56 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 - **Mandatory Confirmation Gate**:
   - Any edit, addition, deletion, or demographic update instantly invalidates verification (`isVerified = false`).
   - Tapping "Confirm & Analyze" validates all measurements (non-empty name, non-null value, realistic age), promotes unverified items to `confirmed` (preserving `corrected`), and sets `isVerified = true`.
-- **Strict Clinical Boundaries**:
-  - ML risk models and GenAI explanations are strictly deferred to subsequent phases.
-  - Results screen functions as a verified-readiness and summary screen without generating premature diagnostic predictions.
+
+---
+
+## 10. Phase 9 Step 4: Analysis Results, ML Risk Assessment & GenAI Explanation
+
+### 10.1 Architecture & Pipeline Flow
+The confirmed clinical measurements from Step 3 feed directly into a multi-stage analysis pipeline:
+
+```
+Verified Measurement Snapshot (Immutable)
+        │
+        ├──► POST /api/v1/reference/analyze (is_user_verified=true, report_id=null, persist=false)
+        │
+        ├──► POST /api/v1/ml/diabetes-risk (is_user_verified=true)
+        ├──► POST /api/v1/ml/heart-risk (is_user_verified=true)
+        └──► POST /api/v1/ml/kidney-risk (is_user_verified=true)
+        │
+        ▼ (Aggregate Deterministic Findings & Valid ML Risks)
+        │
+        └──► POST /api/v1/genai/explain (is_user_verified=true, language='en'|'hi'|'mr'|'gu')
+        │
+        ▼
+Results Dashboard (5 Visual Sections + Multilingual Switcher)
+```
+
+### 10.2 Core Components
+1. **`VerifiedSnapshot` (`models/analysis/verified_snapshot.dart`)**:
+   - An immutable snapshot capturing confirmed measurements and patient demographics.
+   - Enforces an unmodifiable list of measurements to prevent race conditions during downstream processing.
+
+2. **`FeatureMapper` (`services/feature_mapper.dart`)**:
+   - Pure, deterministic mapping utility converting snapshot items to typed backend request bodies.
+   - Converts patient context demographics (`sex`: `M` -> 1.0, `F` -> 0.0; `age` -> float).
+   - Maps known aliases for diabetes (glucose, fasting blood sugar, fbs), heart disease (cholesterol, resting bp, oldpeak, thalach), and kidney disease (serum creatinine, blood urea, hemoglobin).
+   - **Strict Null Preservation**: Missing features strictly remain `null`. No client-side defaults, mean imputation, or synthetic scaling are performed in Flutter.
+
+3. **`AnalysisCubit` & `AnalysisState` (`state/analysis/`)**:
+   - **Verification Gate Enforcement**: Rejects unverified snapshots immediately (`isVerified == false`), transitioning to `AnalysisStatus.failure` with a client safeguard error.
+   - **Parallel Stage Execution**: Executes reference range evaluation and the 3 ML risk models concurrently via `Future.wait`.
+   - **Partial Error Isolation**: Individual subsystem errors (e.g. timeout on one ML endpoint) are caught individually and do not destroy other successful results.
+   - **Informative ML Card Rendering**: When an ML endpoint returns `INSUFFICIENT_FEATURES`, the model's `missing_features` and required feature counts are displayed cleanly; it is never misrepresented as low risk.
+   - **GenAI Explanation Orchestration**: Succeeded ML risks (`status == 'OK'` with non-null probability) and evaluated reference findings are passed to `POST /api/v1/genai/explain`.
+   - **Graceful GenAI Degradation**: Transient HTTP 429 (rate limit), 503 (unavailable), and 504 (timeout) errors preserve all reference and ML results, displaying an educational fallback card with a "Retry AI Explanation" CTA.
+   - **Independent Multilingual Switching**: Tapping the language dropdown (`English`, `Hindi`, `Marathi`, `Gujarati`) re-queries only the GenAI explanation endpoint without re-executing reference analysis or ML models.
+   - **State Invalidation**: Editing any measurement on the verification screen calls `AnalysisCubit.invalidate()`, purging stale analysis state.
+
+4. **Results Dashboard (`screens/results/results_screen.dart`)**:
+   - **Section 1**: Sticky non-diagnostic medical disclaimer banner.
+   - **Section 2**: Verified snapshot summary card displaying confirmed test count, patient age, and sex.
+   - **Section 3**: `ReferenceFindingsCard` rendering deterministic laboratory findings with color-coded classification chips (`LOW`, `NORMAL`, `HIGH`, `CRITICAL`) and normal reference intervals.
+   - **Section 4**: Three `MLRiskCard` components displaying statistical risk probabilities with color progress bars (`LOW`, `MODERATE`, `ELEVATED`) or informative missing parameter lists for `INSUFFICIENT_FEATURES`.
+   - **Section 5**: `GenAIExplanationCard` with language selector dropdown, plain-language summary, key test findings, follow-up guidance, recommended questions for the physician, and retry action.
+   - **Persistent Footer**: Mandatory disclaimer emphasizing non-diagnostic educational purpose.

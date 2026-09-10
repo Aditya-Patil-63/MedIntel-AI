@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_colors.dart';
+import '../../models/analysis/verified_snapshot.dart';
 import '../../models/reference/editable_measurement.dart';
 import '../../models/reference/patient_context.dart';
+import '../../state/analysis/analysis_cubit.dart';
 import '../../state/verification/verification_cubit.dart';
 import '../../state/verification/verification_state.dart';
 import '../../widgets/disclaimer_banner.dart';
@@ -42,6 +44,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
     final ageVal = double.tryParse(_ageController.text.trim());
     final newCtx = PatientContext(age: ageVal, sex: _selectedSex);
     context.read<VerificationCubit>().updatePatientContext(newCtx);
+    context.read<AnalysisCubit>().invalidate();
   }
 
   void _showAddDialog(BuildContext context) {
@@ -54,6 +57,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 value: val,
                 unit: unit,
               );
+          context.read<AnalysisCubit>().invalidate();
         },
       ),
     );
@@ -71,6 +75,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 value: val,
                 unit: unit,
               );
+          context.read<AnalysisCubit>().invalidate();
         },
       ),
     );
@@ -394,8 +399,10 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 TextButton.icon(
                   icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.critical),
                   label: const Text('Remove', style: TextStyle(color: AppColors.critical)),
-                  onPressed: () =>
-                      context.read<VerificationCubit>().removeMeasurement(item.id),
+                  onPressed: () {
+                    context.read<VerificationCubit>().removeMeasurement(item.id);
+                    context.read<AnalysisCubit>().invalidate();
+                  },
                 ),
                 const SizedBox(width: 8),
                 TextButton.icon(
@@ -476,6 +483,18 @@ class _VerificationScreenState extends State<VerificationScreen> {
                                 .confirmVerification();
                             if (!success) return;
                           }
+                          // Capture snapshot from the verified state
+                          final verifiedState =
+                              context.read<VerificationCubit>().state;
+                          final snapshot = VerifiedSnapshot(
+                            measurements: verifiedState.measurements,
+                            patientContext: verifiedState.patientContext,
+                            isVerified: verifiedState.isVerified,
+                          );
+                          // Trigger full analysis pipeline
+                          context
+                              .read<AnalysisCubit>()
+                              .runFullAnalysis(snapshot);
                           // Navigate to ResultsScreen
                           Navigator.push(
                             context,

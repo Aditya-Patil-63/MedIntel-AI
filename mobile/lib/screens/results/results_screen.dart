@@ -1,193 +1,222 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_colors.dart';
-import '../../state/verification/verification_cubit.dart';
-import '../../state/verification/verification_state.dart';
+import '../../state/analysis/analysis_cubit.dart';
+import '../../state/analysis/analysis_state.dart';
 import '../../widgets/disclaimer_banner.dart';
-import '../../widgets/verification_status_chip.dart';
+import '../../widgets/genai_explanation_card.dart';
+import '../../widgets/ml_risk_card.dart';
+import '../../widgets/reference_findings_card.dart';
 
-/// Screen displaying the confirmed verified data state ready for Step 4 analysis.
+/// Comprehensive clinical analysis results dashboard rendering Phase 6 deterministic
+/// reference findings, Phase 7 ML risk estimation, and Phase 8 GenAI explanations.
 class ResultsScreen extends StatelessWidget {
   const ResultsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Verified Report Summary')),
+      appBar: AppBar(
+        title: const Text('Analysis & Risk Assessment'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Re-analyze',
+            onPressed: () {
+              final snap = context.read<AnalysisCubit>().state.snapshot;
+              if (snap != null) {
+                context.read<AnalysisCubit>().runFullAnalysis(snap);
+              }
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Mandatory Disclaimer Banner
-              const DisclaimerBanner(),
-              const SizedBox(height: 16),
+        child: BlocBuilder<AnalysisCubit, AnalysisState>(
+          builder: (context, state) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Mandatory Educational Non-Diagnostic Disclaimer
+                  const DisclaimerBanner(),
+                  const SizedBox(height: 12),
 
-              // 2. Verification Readiness Card
-              BlocBuilder<VerificationCubit, VerificationState>(
-                builder: (context, state) {
-                  if (!state.isVerified) {
-                    return Card(
-                      color: AppColors.highBg,
+                  // 2. Loading State Indicator
+                  if (state.isLoading) ...[
+                    Card(
+                      elevation: 0,
+                      color: AppColors.primaryLight.withValues(alpha: 0.1),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
-                        side: const BorderSide(color: AppColors.high),
+                        side: const BorderSide(color: AppColors.primaryLight),
                       ),
-                      child: const Padding(
-                        padding: EdgeInsets.all(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
-                            Icon(Icons.warning_amber, color: AppColors.high),
-                            SizedBox(width: 10),
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'Data is unverified. Please return to the Verification Gate to confirm values.',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
+                                state.loadingStage ?? 'Analyzing clinical measurements...',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    );
-                  }
-
-                  return Card(
-                    color: AppColors.normalBg,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: const BorderSide(color: AppColors.normal),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.verified, color: AppColors.normal, size: 28),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 12),
+                  ],
+
+                  // 3. General Error Banner
+                  if (state.generalError != null && !state.hasResults) ...[
+                    Card(
+                      color: AppColors.criticalBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: const BorderSide(color: AppColors.critical),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
                               children: [
-                                const Text(
-                                  'User Verification Complete',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    color: AppColors.normal,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
+                                Icon(Icons.error_outline, color: AppColors.critical),
+                                SizedBox(width: 8),
                                 Text(
-                                  '${state.measurements.length} measurements confirmed. Ready for Reference Range & ML Risk Analysis.',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textPrimary,
-                                  ),
+                                  'Analysis Failed',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.critical),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // 3. Patient Context Card
-              BlocBuilder<VerificationCubit, VerificationState>(
-                builder: (context, state) {
-                  final ctx = state.patientContext;
-                  return Card(
-                    elevation: 0,
-                    color: const Color(0xFFF8FAFC),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: AppColors.divider),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          Text(
-                            'Age: ${ctx.age != null ? "${ctx.age!.toStringAsFixed(0)} yrs" : "Not specified"}',
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                          ),
-                          Container(height: 16, width: 1, color: AppColors.divider),
-                          Text(
-                            'Sex: ${ctx.sex == "M" ? "Male" : ctx.sex == "F" ? "Female" : "Not specified"}',
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // 4. Verified Measurements Table/List
-              const Text(
-                'Verified Clinical Measurements',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              BlocBuilder<VerificationCubit, VerificationState>(
-                builder: (context, state) {
-                  return ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: state.measurements.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final item = state.measurements[index];
-                      return Card(
-                        child: ListTile(
-                          title: Text(
-                            item.testName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text('${item.value ?? "N/A"} ${item.unit ?? ""}'),
-                          trailing: VerificationStatusChip(status: item.status),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // 5. Phase 9 Step 4 Notice Card
-              Card(
-                elevation: 0,
-                color: const Color(0xFFF1F5F9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: AppColors.divider),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Icon(Icons.hourglass_top, color: AppColors.secondary, size: 24),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Downstream Reference Range Classification, ML Disease Risk, and GenAI Multilingual Explanations will be integrated in the upcoming Phase 9 steps.',
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
+                            const SizedBox(height: 8),
+                            Text(
+                              state.generalError!,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 4. Verification Summary & Context Header
+                  if (state.snapshot != null) ...[
+                    _buildSnapshotSummary(context, state),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 5. Laboratory Reference Findings Card (Phase 6)
+                  ReferenceFindingsCard(
+                    response: state.referenceAnalysis,
+                    errorMessage: state.referenceError,
                   ),
-                ),
+                  const SizedBox(height: 16),
+
+                  // 6. ML Risk Assessment Section (Phase 7)
+                  const Text(
+                    'Statistical Disease Risk Indicators',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Multivariate research models estimating continuous probability from patient profile.',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 10),
+
+                  MLRiskCard(
+                    title: 'Diabetes Risk Model',
+                    conditionName: 'diabetes',
+                    response: state.diabetesRisk,
+                    errorMessage: state.diabetesError,
+                  ),
+                  const SizedBox(height: 10),
+
+                  MLRiskCard(
+                    title: 'Heart Disease Risk Model',
+                    conditionName: 'heart disease',
+                    response: state.heartRisk,
+                    errorMessage: state.heartError,
+                  ),
+                  const SizedBox(height: 10),
+
+                  MLRiskCard(
+                    title: 'Chronic Kidney Disease Model',
+                    conditionName: 'kidney disease',
+                    response: state.kidneyRisk,
+                    errorMessage: state.kidneyError,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 7. Educational AI Explanation Card (Phase 8)
+                  GenAIExplanationCard(
+                    response: state.genAiExplanation,
+                    errorMessage: state.genAiError,
+                    isLoading: state.isGenAiLoading,
+                    selectedLanguage: state.selectedLanguage,
+                    onRetry: () => context.read<AnalysisCubit>().retryGenAI(),
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
-            ],
-          ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSnapshotSummary(BuildContext context, AnalysisState state) {
+    final snap = state.snapshot!;
+    final ctx = snap.patientContext;
+
+    return Card(
+      elevation: 0,
+      color: const Color(0xFFF8FAFC),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: AppColors.divider),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.verified, color: AppColors.normal, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  '${snap.measurementCount} Verified Tests',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Text(
+                  'Age: ${ctx.age != null ? "${ctx.age!.toStringAsFixed(0)}y" : "—"}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Sex: ${ctx.sex ?? "—"}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

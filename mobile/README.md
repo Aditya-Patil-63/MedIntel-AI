@@ -4,7 +4,7 @@ Flutter mobile client (`medintel_mobile`) for MedIntel AI.
 
 ## Status
 
-**Phase 9 — Mobile Application Development** (Step 3 Complete)
+**Phase 9 — Mobile Application Development** (Step 4 Complete)
 
 - Flutter SDK: 3.47.3 stable / Dart 3.13.3
 - Layered feature-oriented architecture (`core/`, `models/`, `services/`, `repositories/`, `state/`, `screens/`, `widgets/`)
@@ -16,6 +16,13 @@ Flutter mobile client (`medintel_mobile`) for MedIntel AI.
 - **Medical Verification UI**: Complete human-in-the-loop review interface with accessible status chips (`UNVERIFIED`, `CONFIRMED`, `CORRECTED`), item origin (`EXTRACTED`, `MANUAL`), and edit/add/delete actions
 - **Patient Demographics**: Optional Age (0–130) and Sex (`M`, `F`, `unspecified`) input
 - **Mandatory Confirmation Gate**: Strict client safeguard requiring explicit confirmation; any edit instantly invalidates verification
+- **Immutable Verified Snapshot**: Unmodifiable capture of verified measurements and patient context
+- **Pure Feature Mapper**: Deterministic extraction of ML features and reference bodies with strict `null` preservation (no client imputation)
+- **Multi-Stage Analysis Pipeline**: Concurrent execution of deterministic reference evaluation (`POST /api/v1/reference/analyze`) and ML risk models (Diabetes, Heart Disease, Kidney Disease) with partial failure isolation
+- **Informative ML Risk Cards**: Clean visualization of risk probabilities and bands, or explicit missing feature requirements when `INSUFFICIENT_FEATURES`
+- **GenAI Clinical Explanation**: Orchestration of `POST /api/v1/genai/explain` with graceful HTTP 429/503/504 degradation and retry CTA
+- **Independent Multilingual Switching**: On-demand language switching (`en`, `hi`, `mr`, `gu`) without re-running reference or ML analysis
+- **Comprehensive Results Dashboard**: 5-section dashboard with sticky disclaimer, verification summary, laboratory reference cards, ML risk indicators, and AI explanation card
 - App shell with Material 3 medical theme and persistent non-diagnostic educational disclaimer banner
 
 ## Running the Mobile App
