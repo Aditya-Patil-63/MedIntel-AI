@@ -4,13 +4,18 @@ Flutter mobile client (`medintel_mobile`) for MedIntel AI.
 
 ## Status
 
-**Phase 9 — Mobile Application Development** (Step 2 Complete)
+**Phase 9 — Mobile Application Development** (Step 3 Complete)
 
 - Flutter SDK: 3.47.3 stable / Dart 3.13.3
 - Layered feature-oriented architecture (`core/`, `models/`, `services/`, `repositories/`, `state/`, `screens/`, `widgets/`)
 - Strongly typed Dart domain models mirroring all 10 FastAPI backend schemas
 - Typed `Dio` API client supporting timeouts, multipart document extraction, and error unwrapping
-- BLoC/Cubit state management enforcing mandatory human-in-the-loop verification gate
+- **Document Ingestion & File Validation**: PDF, PNG, JPG, JPEG formats strictly capped at 10 MB with 0-byte detection
+- **Multipart Document Extraction**: Direct integration with `POST /api/v1/extract` via Dio multipart upload
+- **Reference Parsing**: Unstructured extracted text parsed via `POST /api/v1/reference/parse-and-analyze` (`is_user_verified = false`)
+- **Medical Verification UI**: Complete human-in-the-loop review interface with accessible status chips (`UNVERIFIED`, `CONFIRMED`, `CORRECTED`), item origin (`EXTRACTED`, `MANUAL`), and edit/add/delete actions
+- **Patient Demographics**: Optional Age (0–130) and Sex (`M`, `F`, `unspecified`) input
+- **Mandatory Confirmation Gate**: Strict client safeguard requiring explicit confirmation; any edit instantly invalidates verification
 - App shell with Material 3 medical theme and persistent non-diagnostic educational disclaimer banner
 
 ## Running the Mobile App

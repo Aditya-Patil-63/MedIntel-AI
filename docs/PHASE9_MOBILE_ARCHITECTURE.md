@@ -1,8 +1,8 @@
 # Phase 9: Mobile Application Architecture & Integration Guide
 
 > **MedIntel AI — Phase 9: Flutter Mobile Application**  
-> Document Version: 1.0  
-> Status: Phase 9 Step 2 Complete  
+> Document Version: 1.1  
+> Status: Phase 9 Step 3 Complete  
 > Target Platform: Android (Primary), Cross-Platform ready  
 
 ---
@@ -230,9 +230,37 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 ## 8. Automated Verification Suite
 
 - **Static Analysis**: `flutter analyze` passes with **0 errors and 0 warnings**.
-- **Unit & Widget Tests**: 23 automated tests pass in `mobile/test/`:
+- **Unit & Widget Tests**: 35 automated tests pass in `mobile/test/`:
   - `models_test.dart`: Serialization and deserialization of all 10 endpoint request/response models.
   - `api_service_test.dart`: Dio error unwrapping, JSON serialization, and endpoint routing.
-  - `cubits_test.dart`: Extraction loading, verification confirmation, and mandatory verification guard checks.
-  - `widget_test.dart`: App shell smoke test verifying title, disclaimer banner, and pipeline navigation tiles.
+  - `cubits_test.dart`: Ingestion file validation, extraction lifecycle, reference parsing, human-in-the-loop editing, verification gate confirmation/invalidation, and mandatory verification guard checks.
+  - `widget_test.dart`: App shell smoke test, upload screen constraints, verification review UI, and results readiness screen.
 - **Backend Integrity**: `pytest` confirms all 259 backend tests pass with 0 regressions.
+
+---
+
+## 9. Phase 9 Step 3: Document Ingestion, Extraction, Parsing & Verification UI
+
+### 9.1 Implementation Highlights
+- **Document Ingestion & File Validation**:
+  - `DocumentCubit` validates files before upload: allowed extensions (`.pdf`, `.png`, `.jpg`, `.jpeg`), size cap (10 MB), and non-zero byte check.
+  - Granular state machine: `DocumentInitial`, `DocumentSelecting`, `DocumentValidating`, `DocumentValidationFailed`, `DocumentUploading`, `DocumentExtracting`, `DocumentExtracted`, and `DocumentError` with retry support.
+- **Multipart Document Extraction**:
+  - Direct integration with `POST /api/v1/extract` via Dio multipart `FormData`.
+  - Content-Type header is left unset on Dio defaults, allowing boundary generation per request.
+- **Automatic Reference Parsing**:
+  - Extracted text is automatically passed to `POST /api/v1/reference/parse-and-analyze` with `is_user_verified = false`.
+  - Parsed measurements initialize with `VerificationItemStatus.unverified` and `MeasurementOrigin.extracted`.
+- **Human-in-the-Loop Medical Verification UI**:
+  - `VerificationScreen` presents an interactive review table:
+    - Summary status counters: Total items, Unverified, Confirmed, Corrected.
+    - Patient context input: Age (0–130) and Sex (`M`, `F`, `unspecified`).
+    - Accessible verification badges with distinct colors, labels, and icons.
+    - Editable fields: Test name, numerical value, and unit.
+    - Ability to add missing measurements (`MeasurementOrigin.manual`) or remove spurious detections.
+- **Mandatory Confirmation Gate**:
+  - Any edit, addition, deletion, or demographic update instantly invalidates verification (`isVerified = false`).
+  - Tapping "Confirm & Analyze" validates all measurements (non-empty name, non-null value, realistic age), promotes unverified items to `confirmed` (preserving `corrected`), and sets `isVerified = true`.
+- **Strict Clinical Boundaries**:
+  - ML risk models and GenAI explanations are strictly deferred to subsequent phases.
+  - Results screen functions as a verified-readiness and summary screen without generating premature diagnostic predictions.

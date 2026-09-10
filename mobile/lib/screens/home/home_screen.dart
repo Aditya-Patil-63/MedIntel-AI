@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/api_service.dart';
+import '../../state/verification/verification_cubit.dart';
+import '../../state/verification/verification_state.dart';
 import '../../widgets/disclaimer_banner.dart';
 import '../../widgets/status_card.dart';
 import '../history/history_screen.dart';
@@ -37,43 +39,55 @@ class _HomeScreenState extends State<HomeScreen> {
     // 1. Health
     try {
       final health = await apiService.getHealth();
-      setState(() {
-        _isBackendOk = health['status'] == 'ok';
-        _backendStatus = health['status']?.toString() ?? 'online';
-      });
+      if (mounted) {
+        setState(() {
+          _isBackendOk = health['status'] == 'ok';
+          _backendStatus = health['status']?.toString() ?? 'online';
+        });
+      }
     } catch (_) {
-      setState(() {
-        _isBackendOk = false;
-        _backendStatus = 'offline';
-      });
+      if (mounted) {
+        setState(() {
+          _isBackendOk = false;
+          _backendStatus = 'offline';
+        });
+      }
     }
 
     // 2. ML Status
     try {
       final ml = await apiService.getMLStatus();
-      setState(() {
-        _isMlOk = ml.status == 'OK';
-        _mlStatus = ml.status;
-      });
+      if (mounted) {
+        setState(() {
+          _isMlOk = ml.status == 'OK';
+          _mlStatus = ml.status;
+        });
+      }
     } catch (_) {
-      setState(() {
-        _isMlOk = false;
-        _mlStatus = 'unavailable';
-      });
+      if (mounted) {
+        setState(() {
+          _isMlOk = false;
+          _mlStatus = 'unavailable';
+        });
+      }
     }
 
     // 3. GenAI Status
     try {
       final genai = await apiService.getGenAIStatus();
-      setState(() {
-        _isGenAiOk = genai.available;
-        _genaiStatus = genai.status;
-      });
+      if (mounted) {
+        setState(() {
+          _isGenAiOk = genai.available;
+          _genaiStatus = genai.status;
+        });
+      }
     } catch (_) {
-      setState(() {
-        _isGenAiOk = false;
-        _genaiStatus = 'unavailable';
-      });
+      if (mounted) {
+        setState(() {
+          _isGenAiOk = false;
+          _genaiStatus = 'unavailable';
+        });
+      }
     }
   }
 
@@ -171,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 3. Clinical Workflow Actions
+              // 3. Clinical Pipeline Actions
               const Text(
                 'Clinical Pipeline',
                 style: TextStyle(
@@ -184,26 +198,58 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildActionTile(
                 icon: Icons.upload_file,
                 title: 'Upload Report',
-                subtitle: 'Capture or select PDF/image lab report',
+                subtitle: 'Select PDF or image medical report (<=10 MB)',
                 color: AppColors.primary,
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (_) => const UploadScreen()),
+                    MaterialPageRoute(builder: (_) => const UploadScreen()),
                   );
                 },
               ),
-              _buildActionTile(
-                icon: Icons.verified_user_outlined,
-                title: 'User Verification Gate',
-                subtitle: 'Confirm extracted lab values (mandatory)',
-                color: AppColors.secondary,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const VerificationScreen()),
+              BlocBuilder<VerificationCubit, VerificationState>(
+                builder: (context, state) {
+                  String sub = 'Confirm extracted lab values (mandatory)';
+                  if (state.measurements.isNotEmpty) {
+                    sub = state.isVerified
+                        ? '${state.measurements.length} measurements verified'
+                        : '${state.unverifiedCount} unverified measurements pending review';
+                  }
+
+                  return _buildActionTile(
+                    icon: state.isVerified
+                        ? Icons.verified
+                        : Icons.verified_user_outlined,
+                    title: 'User Verification Gate',
+                    subtitle: sub,
+                    color: state.isVerified
+                        ? AppColors.normal
+                        : AppColors.secondary,
+                    trailingBadge: state.unverifiedCount > 0
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.highBg,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${state.unverifiedCount} pending',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.high,
+                              ),
+                            ),
+                          )
+                        : null,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const VerificationScreen()),
+                      );
+                    },
                   );
                 },
               ),
@@ -215,8 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (_) => const ResultsScreen()),
+                    MaterialPageRoute(builder: (_) => const ResultsScreen()),
                   );
                 },
               ),
@@ -228,8 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (_) => const HistoryScreen()),
+                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
                   );
                 },
               ),
@@ -245,6 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required String title,
     required String subtitle,
     required Color color,
+    Widget? trailingBadge,
     required VoidCallback onTap,
   }) {
     return Card(
@@ -266,7 +311,8 @@ class _HomeScreenState extends State<HomeScreen> {
           subtitle,
           style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
-        trailing: const Icon(Icons.chevron_right, color: AppColors.textMuted),
+        trailing: trailingBadge ??
+            const Icon(Icons.chevron_right, color: AppColors.textMuted),
         onTap: onTap,
       ),
     );

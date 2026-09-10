@@ -34,15 +34,13 @@ class MedIntelApp extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider<DocumentCubit>(
-            create: (_) =>
-                DocumentCubit(apiService: effectiveApiService),
+            create: (_) => DocumentCubit(apiService: effectiveApiService),
           ),
           BlocProvider<VerificationCubit>(
-            create: (_) => VerificationCubit(),
+            create: (_) => VerificationCubit(apiService: effectiveApiService),
           ),
           BlocProvider<AnalysisCubit>(
-            create: (_) =>
-                AnalysisCubit(repository: effectiveRepo),
+            create: (_) => AnalysisCubit(repository: effectiveRepo),
           ),
           BlocProvider<HistoryCubit>(
             create: (_) => HistoryCubit(),
