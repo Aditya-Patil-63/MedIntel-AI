@@ -112,8 +112,8 @@ MedIntel-AI/
 | 4     | PDF & OCR Pipeline                | ✅ Complete     |
 | 5     | Handwriting Recognition           | ✅ Complete     |
 | 6     | Medical Reference Analysis        | ✅ Complete     |
-| 7     | ML Risk Models                    | 🟡 In Progress (Steps 1–4 Complete) |
-| 8     | Generative AI Integration         | ⬜ Pending      |
+| 7     | ML Risk Models                    | ✅ Complete     |
+| 8     | Generative AI Integration         | 🟡 In Progress (Steps 1–3 Complete) |
 | 9     | Flutter Mobile App                | ⬜ Pending      |
 | 10    | Integration & Testing             | ⬜ Pending      |
 | 11    | Documentation & Deployment        | ⬜ Pending      |
@@ -147,7 +147,16 @@ The following datasets have been selected, verified, and audited:
 
 ## Project Status
 
-**Current Phase: Phase 7 — ML Risk Models (Steps 1–4 Complete)**
+**Current Phase: Phase 8 — Generative AI Explanation (Steps 1–3 Complete)**
+
+- **Generative AI Explanation & Translation (`docs/PHASE8_GENAI_ARCHITECTURE.md`, `backend/app/schemas/genai.py`, `backend/app/services/genai_service.py`, `backend/app/api/genai.py`)**:
+  - Phase 8 Step 3: FastAPI GenAI service and offline mock API implemented.
+  - Pydantic contracts enforcing strict non-diagnostic, non-prescriptive communication.
+  - Decoupled `BaseGenAIProvider` abstract interface with offline deterministic `MockGenAIProvider`.
+  - Service orchestration layer (`GenAIExplanationService`) managing provider factory, user verification safety gate (`is_user_verified`), multilingual translation dispatch, and SQLite `Summary` persistence.
+  - FastAPI endpoints: `POST /api/v1/genai/explain` and `GET /api/v1/genai/status`.
+  - Multilingual translation support across English (`en`), Hindi (`hi`), Marathi (`mr`), and Gujarati (`gu`) strictly preserving numerical and clinical invariance.
+  - Zero external API calls, zero network dependencies, 100% offline test coverage (35 Phase 8 tests).
 
 - **ML Risk Models & FastAPI Integration (`ml/`, `backend/app/api/ml_risk.py`, `backend/app/services/ml_risk_service.py`)**:
   - Leakage-safe 5-fold Stratified Cross-Validation across Diabetes, Heart Disease, and Chronic Kidney Disease.

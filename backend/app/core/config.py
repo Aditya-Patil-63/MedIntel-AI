@@ -6,6 +6,8 @@ All sensitive values (API keys, secrets) must be provided via
 environment variables — never hardcoded in source code.
 """
 
+from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,6 +38,13 @@ class Settings(BaseSettings):
 
     # Machine Learning Risk Models (Phase 7)
     MEDINTEL_ML_MODELS_DIR: str = "D:\\MedIntel-Datasets\\ml_models"
+
+    # Generative AI & Explanation (Phase 8)
+    GENAI_PROVIDER: str = "mock"  # "mock" or "gemini"
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-3.8-flash"
+    GEMINI_TIMEOUT_SECONDS: float = 30.0
+    GEMINI_MAX_OUTPUT_TOKENS: int = 2048
 
     model_config = SettingsConfigDict(
         env_file=".env",
