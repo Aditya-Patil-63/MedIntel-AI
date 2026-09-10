@@ -94,8 +94,9 @@ def test_client_and_db(tmp_path):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as client:
-        yield client, report_id, user_id, TestingSessionLocal
+    with patch.object(settings, "GENAI_PROVIDER", "mock"):
+        with TestClient(app) as client:
+            yield client, report_id, user_id, TestingSessionLocal
 
     app.dependency_overrides.clear()
 
@@ -426,12 +427,17 @@ def test_p_provider_failure_returns_safe_structured_error(test_client_and_db, sa
 # ---------------------------------------------------------------------------
 
 def test_q_provider_configuration_error_handled_safely(test_client_and_db, sample_explain_payload):
-    """Verify GENAI_PROVIDER='gemini' returns HTTP 503 notice without crashing."""
+    """Verify missing API key returns HTTP 503 and unsupported provider returns HTTP 500."""
     client, _, _, _ = test_client_and_db
-    with patch.object(settings, "GENAI_PROVIDER", "gemini"):
+    with patch.object(settings, "GENAI_PROVIDER", "gemini"), patch.object(settings, "GEMINI_API_KEY", None):
         resp = client.post("/api/v1/genai/explain", json=sample_explain_payload)
         assert resp.status_code == 503
-        assert "Gemini provider is not yet implemented" in resp.json()["detail"]
+        assert "GEMINI_API_KEY is not configured" in resp.json()["detail"]
+
+    with patch.object(settings, "GENAI_PROVIDER", "invalid_provider"):
+        resp = client.post("/api/v1/genai/explain", json=sample_explain_payload)
+        assert resp.status_code == 500
+        assert "Unsupported GENAI_PROVIDER" in resp.json()["detail"]
 
 
 # ---------------------------------------------------------------------------

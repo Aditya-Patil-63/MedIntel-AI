@@ -6,6 +6,7 @@ and translation services.
 """
 
 from app.services.genai.base import BaseGenAIProvider
+from app.services.genai.gemini_provider import GeminiProvider
 from app.services.genai.mock_provider import MockGenAIProvider
 
-__all__ = ["BaseGenAIProvider", "MockGenAIProvider"]
+__all__ = ["BaseGenAIProvider", "MockGenAIProvider", "GeminiProvider"]

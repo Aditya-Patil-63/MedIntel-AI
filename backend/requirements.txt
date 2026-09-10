@@ -23,3 +23,6 @@ pdfplumber>=0.11.0
 pillow>=10.0.0
 pytesseract>=0.3.10
 python-multipart>=0.0.18
+
+# Generative AI & Explanation (Phase 8)
+google-genai>=2.0.0

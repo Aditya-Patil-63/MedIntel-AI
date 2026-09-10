@@ -60,16 +60,18 @@ class GenAIExplanationService:
         if provider_setting == "mock":
             return MockGenAIProvider()
         elif provider_setting == "gemini":
-            logger.error("Gemini provider configured but not yet implemented in Phase 8 Step 3.")
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Gemini provider is not yet implemented in this release. Please configure GENAI_PROVIDER='mock'.",
+            from app.services.genai.gemini_provider import GeminiProvider
+            return GeminiProvider(
+                api_key=settings.GEMINI_API_KEY,
+                model_name=settings.GEMINI_MODEL,
+                timeout_seconds=settings.GEMINI_TIMEOUT_SECONDS,
+                max_output_tokens=settings.GEMINI_MAX_OUTPUT_TOKENS,
             )
         else:
             logger.error("Unknown GENAI_PROVIDER configured: %s", provider_setting)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Unsupported GENAI_PROVIDER '{provider_setting}'. Supported: 'mock'.",
+                detail=f"Unsupported GENAI_PROVIDER '{provider_setting}'. Supported: 'mock', 'gemini'.",
             )
 
     async def explain_findings(
@@ -151,6 +153,29 @@ class GenAIExplanationService:
             base_payload = await provider.generate_explanation(request)
         except HTTPException:
             raise
+        except TimeoutError as exc:
+            logger.error("GenAI provider timeout: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="GenAI explanation request timed out.",
+            ) from exc
+        except RuntimeError as exc:
+            err_msg = str(exc).lower()
+            if "not configured" in err_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="GenAI provider is unavailable: GEMINI_API_KEY is not configured.",
+                ) from exc
+            if "rate limit" in err_msg or "429" in err_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="GenAI provider rate limit exceeded. Please retry later.",
+                ) from exc
+            logger.exception("Provider failure during explanation generation: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="An error occurred while generating the educational explanation.",
+            ) from exc
         except Exception as exc:
             logger.exception("Provider failure during explanation generation: %s", exc)
             raise HTTPException(
@@ -237,12 +262,20 @@ class GenAIExplanationService:
                 network_required=health.get("network_required", False),
             )
         elif provider_setting == "gemini":
+            from app.services.genai.gemini_provider import GeminiProvider
+            provider = GeminiProvider(
+                api_key=settings.GEMINI_API_KEY,
+                model_name=settings.GEMINI_MODEL,
+                timeout_seconds=settings.GEMINI_TIMEOUT_SECONDS,
+                max_output_tokens=settings.GEMINI_MAX_OUTPUT_TOKENS,
+            )
+            health = await provider.check_health()
             return GenAIStatusResponse(
-                status="DEGRADED",
+                status=health.get("status", "OK"),
                 provider="gemini",
                 model=getattr(settings, "GEMINI_MODEL", "gemini-3.8-flash"),
-                available=False,
-                mode="unimplemented_in_step_3",
+                available=health.get("available", True),
+                mode=health.get("mode", "live_gemini_api"),
                 network_required=True,
             )
         else:
