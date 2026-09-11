@@ -1,8 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_colors.dart';
+import '../../models/history/analysis_history_item.dart';
 import '../../state/analysis/analysis_cubit.dart';
 import '../../state/analysis/analysis_state.dart';
+import '../../state/document/document_cubit.dart';
+import '../../state/document/document_state.dart';
+import '../../state/history/history_cubit.dart';
+import '../../state/verification/verification_cubit.dart';
 import '../../widgets/disclaimer_banner.dart';
 import '../../widgets/genai_explanation_card.dart';
 import '../../widgets/ml_risk_card.dart';
@@ -10,8 +16,60 @@ import '../../widgets/reference_findings_card.dart';
 
 /// Comprehensive clinical analysis results dashboard rendering Phase 6 deterministic
 /// reference findings, Phase 7 ML risk estimation, and Phase 8 GenAI explanations.
-class ResultsScreen extends StatelessWidget {
+class ResultsScreen extends StatefulWidget {
   const ResultsScreen({super.key});
+
+  @override
+  State<ResultsScreen> createState() => _ResultsScreenState();
+}
+
+class _ResultsScreenState extends State<ResultsScreen> {
+  String? _savedHistoryId;
+
+  void _saveToHistory(BuildContext context, AnalysisState state) {
+    if (state.snapshot == null || state.isGenAiLoading) return;
+
+    String docName = 'Medical Report';
+    final docState = context.read<DocumentCubit>().state;
+    if (docState is DocumentExtracted) {
+      final fileName = docState.filePath.split(Platform.pathSeparator).last;
+      if (fileName.trim().isNotEmpty) {
+        docName = fileName;
+      }
+    }
+
+    final historyId = 'hist_${DateTime.now().millisecondsSinceEpoch}';
+    final historyItem = AnalysisHistoryItem.fromAnalysisState(
+      id: historyId,
+      createdAt: DateTime.now(),
+      documentName: docName,
+      state: state,
+    );
+
+    context.read<HistoryCubit>().addRecord(historyItem);
+
+    setState(() {
+      _savedHistoryId = historyId;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Analysis saved to local session history.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _startNewAnalysis(BuildContext context) {
+    // 1. Clear current analysis state
+    context.read<AnalysisCubit>().reset();
+    // 2. Clear current document/extraction state
+    context.read<DocumentCubit>().reset();
+    // 3. Clear verification state
+    context.read<VerificationCubit>().reset();
+    // 4. Return to home
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,8 +122,10 @@ class ResultsScreen extends StatelessWidget {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                state.loadingStage ?? 'Analyzing clinical measurements...',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                state.loadingStage ??
+                                    'Analyzing clinical measurements...',
+                                style: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.w600),
                               ),
                             ),
                           ],
@@ -90,11 +150,14 @@ class ResultsScreen extends StatelessWidget {
                           children: [
                             const Row(
                               children: [
-                                Icon(Icons.error_outline, color: AppColors.critical),
+                                Icon(Icons.error_outline,
+                                    color: AppColors.critical),
                                 SizedBox(width: 8),
                                 Text(
                                   'Analysis Failed',
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.critical),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.critical),
                                 ),
                               ],
                             ),
@@ -131,7 +194,8 @@ class ResultsScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   const Text(
                     'Multivariate research models estimating continuous probability from patient profile.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style:
+                        TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 10),
 
@@ -167,11 +231,92 @@ class ResultsScreen extends StatelessWidget {
                     selectedLanguage: state.selectedLanguage,
                     onRetry: () => context.read<AnalysisCubit>().retryGenAI(),
                   ),
+                  const SizedBox(height: 16),
+
+                  // 8. Bottom Action Bar: Save to History & Start New Analysis
+                  _buildBottomActions(context, state),
                   const SizedBox(height: 24),
                 ],
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomActions(BuildContext context, AnalysisState state) {
+    final isSaved = _savedHistoryId != null;
+    final canSave = state.status == AnalysisStatus.success &&
+        state.snapshot != null &&
+        !state.isGenAiLoading &&
+        state.hasResults;
+
+    return Card(
+      elevation: 0,
+      color: const Color(0xFFF8FAFC),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.divider),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: Icon(isSaved
+                        ? Icons.check_circle
+                        : Icons.bookmark_add_outlined),
+                    label: Text(
+                      isSaved
+                          ? 'Saved to History'
+                          : (state.isGenAiLoading
+                              ? 'Generating AI...'
+                              : 'Save to History'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          isSaved ? AppColors.normal : AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: (canSave && !isSaved)
+                        ? () => _saveToHistory(context, state)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.add_circle_outline),
+                    label: const Text(
+                      'Start New Analysis',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                    ),
+                    onPressed: () => _startNewAnalysis(context),
+                  ),
+                ),
+              ],
+            ),
+            if (isSaved) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Snapshot recorded in local session history. View in Report History tab.',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.normal,
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -199,7 +344,8 @@ class ResultsScreen extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   '${snap.measurementCount} Verified Tests',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style:
+                      const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ],
             ),
@@ -207,12 +353,14 @@ class ResultsScreen extends StatelessWidget {
               children: [
                 Text(
                   'Age: ${ctx.age != null ? "${ctx.age!.toStringAsFixed(0)}y" : "—"}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'Sex: ${ctx.sex ?? "—"}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             ),

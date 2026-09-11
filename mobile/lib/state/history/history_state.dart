@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
+import '../../models/history/analysis_history_item.dart';
 
+/// State representation for local session history of completed analyses.
 abstract class HistoryState extends Equatable {
   const HistoryState();
 
@@ -16,11 +18,13 @@ class HistoryLoading extends HistoryState {
 }
 
 class HistoryLoaded extends HistoryState {
-  final List<Map<String, dynamic>> reports;
-  const HistoryLoaded(this.reports);
+  final List<AnalysisHistoryItem> records;
+
+  HistoryLoaded(List<AnalysisHistoryItem> records)
+      : records = List<AnalysisHistoryItem>.unmodifiable(records);
 
   @override
-  List<Object?> get props => [reports];
+  List<Object?> get props => [records];
 }
 
 class HistoryError extends HistoryState {

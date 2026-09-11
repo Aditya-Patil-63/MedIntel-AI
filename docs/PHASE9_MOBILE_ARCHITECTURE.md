@@ -1,9 +1,9 @@
 # Phase 9: Mobile Application Architecture & Integration Guide
 
-> **MedIntel AI — Phase 9: Flutter Mobile Application**  
-> Document Version: 1.1  
-> Status: Phase 9 Step 3 Complete  
-> Target Platform: Android (Primary), Cross-Platform ready  
+> **MedIntel AI — Phase 9: Flutter Mobile Application**
+> Document Version: 1.2
+> Status: Phase 9 Complete
+> Target Platform: Android (Primary), Cross-Platform ready
 
 ---
 
@@ -241,13 +241,15 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 ## 8. Automated Verification Suite
 
 - **Static Analysis**: `flutter analyze` passes with **0 errors and 0 warnings**.
-- **Unit & Widget Tests**: 51 automated tests pass in `mobile/test/`:
+- **Unit & Widget Tests**: 66 automated tests pass in `mobile/test/`:
   - `models_test.dart`: Serialization and deserialization of all 10 endpoint request/response models.
   - `api_service_test.dart`: Dio error unwrapping, JSON serialization, and endpoint routing.
   - `cubits_test.dart`: Document & Verification Cubit lifecycle, verification gate confirmation/invalidation, and mandatory verification guard checks.
   - `feature_mapper_test.dart`: Pure mapping logic, demographic conversion (`M`=1.0, `F`=0.0), alias resolution, and strict `null` preservation without client imputation.
   - `analysis_cubit_test.dart`: Multi-stage pipeline orchestration, unverified rejection, parallel execution, partial error isolation, HTTP 503 fallback, and independent language switching.
   - `results_dashboard_test.dart`: Component rendering of reference interval badges, ML risk probabilities, `INSUFFICIENT_FEATURES` missing data cards, and GenAI explanation cards.
+  - `history_cubit_test.dart`: Local session history management, newest-first sorting, deduplication, immutable list wrapping, and serialization roundtrips.
+  - `e2e_flow_test.dart`: End-to-end user workflow from document upload through verification, analysis, local history save, inspection, and "Start New Analysis" state reset.
   - `widget_test.dart`: App shell smoke test, upload screen constraints, verification review UI, and results dashboard.
 - **Backend Integrity**: `pytest` confirms all 259 backend tests pass with 0 regressions.
 
@@ -328,3 +330,82 @@ Results Dashboard (5 Visual Sections + Multilingual Switcher)
    - **Section 4**: Three `MLRiskCard` components displaying statistical risk probabilities with color progress bars (`LOW`, `MODERATE`, `ELEVATED`) or informative missing parameter lists for `INSUFFICIENT_FEATURES`.
    - **Section 5**: `GenAIExplanationCard` with language selector dropdown, plain-language summary, key test findings, follow-up guidance, recommended questions for the physician, and retry action.
    - **Persistent Footer**: Mandatory disclaimer emphasizing non-diagnostic educational purpose.
+
+---
+
+## 11. Phase 9 Step 5: Final Integration, Session History & End-to-End Validation
+
+### 11.1 Completed End-to-End Clinical Flow
+The complete Flutter application workflow integrates all 4 engineering phases into a seamless, deterministic, and safe user journey:
+
+```
+[Document Selection]
+       │ (.pdf, .png, .jpg, .jpeg | <=10 MB | non-empty)
+       ▼
+[Multipart Extraction] ──► POST /api/v1/extract (Tesseract / EasyOCR / pdfplumber)
+       │
+       ▼
+[Reference Parsing]    ──► POST /api/v1/reference/parse-and-analyze (is_user_verified=false)
+       │
+       ▼
+┌────────────────────────────────────────────────────────┐
+│              MANDATORY VERIFICATION GATE               │
+│  User reviews, corrects, adds, or deletes values.      │
+│  Edits invalidate confirmation (`isVerified = false`). │
+│  User taps "Confirm & Analyze" (`isVerified = true`).  │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+              [Immutable Verified Snapshot]
+              (List.unmodifiable clinical items)
+                           │
+       ┌───────────────────┼───────────────────┐
+       ▼                   ▼                   ▼
+[Reference Batch]    [ML Diabetes]        [ML CKD]
+POST /reference/analyze  POST /ml/diabetes   POST /ml/kidney
+                           │
+                           ▼
+                     [ML Heart]
+                     POST /ml/heart
+       │                   │                   │
+       └───────────────────┼───────────────────┘
+                           │ Aggregated Findings & Valid Risks
+                           ▼
+                 [GenAI Multilingual]
+                 POST /genai/explain (en, hi, mr, gu)
+                           │
+                           ▼
+                  [Results Dashboard]
+           ├── Save to Session History
+           └── Start New Analysis
+```
+
+### 11.2 History Architecture & In-Memory Session Storage
+- **Backend Architectural Reality**: The FastAPI backend contains SQLAlchemy ORM persistence models (`reports`, `test_results`, `predictions`, `summaries`) with optional parameters (`report_id`, `persist: bool`), but does NOT expose any history-read endpoints (`GET /api/v1/history` or `GET /api/v1/reports`), nor does it provide user authentication or session management APIs.
+- **Mobile Session Store**: In strict adherence to project safety rules prohibiting unauthorized backend rewrites, History is implemented as a strongly typed, in-memory local session store in `HistoryCubit`.
+- **Scope & Limitations**:
+  - History records are stored in memory for the duration of the active app session.
+  - History is strictly mobile-local; the app never falsely claims cloud synchronization or server persistence.
+  - No database bloat, no third-party native storage dependencies, and zero risk of cross-patient data leakage.
+- **History Immutability**:
+  - The `AnalysisHistoryItem` model represents an unmodifiable snapshot of the completed analysis.
+  - Contains immutable copies of verified measurements, deterministic reference classifications, ML risk probabilities, and educational GenAI summaries.
+  - Lists are wrapped in `List.unmodifiable` to ensure that subsequent edits on the verification screen or starting new analyses never mutate past records.
+- **Zero Medical Computation on History Inspection**:
+  - Opening `HistoryScreen` or `HistoryDetailScreen` triggers zero network calls, zero ML inference, zero reference evaluations, and zero GenAI queries.
+  - Historical records are strictly read-only snapshots.
+
+### 11.3 "Start New Analysis" Workflow
+- Tapping "Start New Analysis" on the results screen cleanly resets active state:
+  1. `AnalysisCubit.reset()` clears active analysis, reference findings, ML predictions, and GenAI explanations.
+  2. `DocumentCubit.reset()` clears uploaded files, extraction results, and progress states.
+  3. `VerificationCubit.reset()` clears editable measurements and resets the verification gate to unverified.
+  4. Pops back to the root `HomeScreen`, ensuring no stale results can contaminate subsequent analyses.
+  5. Saved historical records in `HistoryCubit` remain completely untouched.
+
+### 11.4 Verification Safety & Guard Invariants
+1. **Authoritative Backend Verification**: The FastAPI backend remains the authoritative gate. All analysis endpoints reject unverified data with HTTP 400.
+2. **Client-Side Safeguard**: `AnalysisCubit.runFullAnalysis` rejects unverified snapshots before issuing any network requests.
+3. **Pure Feature Mapping**: `FeatureMapper` performs pure, deterministic conversions and strictly preserves `null` for missing features. No synthetic data, no mean imputation, and no client-side clinical calculations.
+4. **Resilience to Subsystem Failure**: Isolated error containment preserves valid findings if an individual ML model returns `INSUFFICIENT_FEATURES` or if GenAI experiences transient rate limiting (HTTP 429).
+5. **Non-Diagnostic Educational Disclaimers**: Sticky non-diagnostic banners are rendered on every screen without exception.
