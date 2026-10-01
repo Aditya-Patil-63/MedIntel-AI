@@ -17,3 +17,4 @@ This directory contains comprehensive architectural guides, benchmark reports, a
 | **Phase 8** | Generative AI Integration | [PHASE8_GENAI_ARCHITECTURE.md](PHASE8_GENAI_ARCHITECTURE.md) | Gemini provider, prompt architecture, safety boundaries, and multilingual support |
 | **Phase 9** | Mobile App Architecture | [PHASE9_MOBILE_ARCHITECTURE.md](PHASE9_MOBILE_ARCHITECTURE.md) | Flutter client layered architecture, BLoC/Cubit state, UI screens, and session history |
 | **Phase 10** | Integration & Testing | [PHASE10_INTEGRATION_AND_TESTING.md](PHASE10_INTEGRATION_AND_TESTING.md) | System-wide integration flow, cross-subsystem test matrix, and resilience strategy |
+| **Phase 10** | Performance & Concurrency Audit | [PHASE10_PERFORMANCE_AND_CONCURRENCY_REPORT.md](PHASE10_PERFORMANCE_AND_CONCURRENCY_REPORT.md) | Empirical latency benchmarks, throughput metrics, in-memory caching, and memory stability |
