@@ -16,8 +16,9 @@ Comprehensive test suite covering all backend services, ML inference pipelines, 
 | **Phase 7:** ML Risk Models & API | `tests/test_phase7_ml.py`<br>`tests/test_phase7_audit.py`<br>`tests/test_phase7_api.py` | 48 | Pipeline inference, model loading, `INSUFFICIENT_FEATURES` handling |
 | **Phase 8:** Generative AI & Translation | `tests/test_phase8_schemas.py`<br>`tests/test_phase8_api.py`<br>`tests/test_phase8_gemini.py` | 35 | Gemini provider, offline mock, multilingual invariance (EN, HI, MR, GU) |
 | **Phase 9:** Mobile Flutter Client | `mobile/test/*_test.dart` (9 suites) | 66 | Cubits, UI widgets, verified snapshot, end-to-end integration |
-| **Phase 10:** E2E Pipeline Integration | `tests/test_phase10_e2e_integration.py` | 9 | Unified document→analysis→ML→GenAI flow, gate enforcement, persistence |
-| **Total Test Suite** | **Full Repository** | **334 Tests** | **Zero Failures, 100% Passing** |
+| **Phase 10 (Steps 1 & 2):** E2E Pipeline Integration | `tests/test_phase10_e2e_integration.py` | 9 | Unified document→analysis→ML→GenAI flow, gate enforcement, persistence |
+| **Phase 10 (Step 3):** Edge Cases & Fault Tolerance | `tests/test_phase10_edge_cases_and_fault_tolerance.py` | 33 | Corrupted inputs, ReDoS/stress parsing, extreme boundaries, provider fallbacks, DB rollback |
+| **Total Test Suite** | **Full Repository** | **367 Tests** | **Zero Failures, 100% Passing** |
 
 ---
 

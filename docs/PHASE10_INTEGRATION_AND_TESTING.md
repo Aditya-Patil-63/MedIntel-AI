@@ -2,7 +2,7 @@
 
 > **MedIntel AI — Phase 10: Integration, Verification & Resilience Testing**
 > Document Version: 1.0
-> Status: In Progress (Step 1: Pipeline Integration & Documentation Alignment)
+> Status: In Progress (Step 3: Edge Case, Boundary & Fault-Tolerance Testing Complete)
 > Target Subsystems: Backend (FastAPI), Mobile Client (Flutter), ML Risk Engines, Reference Engine, GenAI Provider, Database
 
 ---
@@ -122,12 +122,21 @@ Under **Section 7 of `PROJECT_RULES.md`**, the system enforces four non-negotiab
   - Verify complete repository status and push Android build compatibility fix.
   - Establish `docs/PHASE10_INTEGRATION_AND_TESTING.md`.
   - Update `PROJECT_RULES.md` and `README.md` roadmaps.
-- [ ] **Step 2: End-to-End Pipeline Integration Runner**
-  - Construct automated script executing full multi-subsystem workflow.
-  - Validate end-to-end integration across OCR, Reference, ML, and GenAI.
-- [ ] **Step 3: Edge Case, Boundary & Fault-Tolerance Testing**
-  - Test corrupt files, empty text, out-of-range lab values, extreme values.
-  - Test partial ML inputs (`INSUFFICIENT_FEATURES`), GenAI rate-limiting (HTTP 429), and network failure recovery.
+- [x] **Step 2: End-to-End Pipeline Integration Runner**
+  - Constructed automated runner script `scripts/run_cross_subsystem_tests.py` orchestrating cross-subsystem test runs.
+  - Implemented `tests/test_phase10_e2e_integration.py` covering 9 integration tests from document ingestion to GenAI and persistence.
+- [x] **Step 3: Edge Case, Boundary & Fault-Tolerance Testing**
+  - Implemented `tests/test_phase10_edge_cases_and_fault_tolerance.py` covering 33 resilience tests:
+    - Corrupt/truncated PDF, random binary noise, broken image headers, double extensions, 10MB limits, empty 0-byte uploads.
+    - Path traversal filename attack resilience.
+    - Stress parsing of 120,000+ characters without exponential regex backtracking (sub-second completion).
+    - Extreme and physiologically impossible lab values classified deterministically (CRITICAL/HIGH).
+    - Conflicting duplicate readings disambiguated for verification.
+    - Injection attack resistance (XSS, SQLi, control bytes).
+    - Exact floating-point threshold boundary cutoffs for reference classification.
+    - ML fault tolerance: NaN/Inf rejection (HTTP 422), string rejection, empty/irrelevant feature rejection (`INSUFFICIENT_FEATURES`), extreme values without overflow, all zeros without divide-by-zero, unverified safety gating.
+    - GenAI failure fallbacks: Provider rate-limit (HTTP 429), upstream timeout (HTTP 504), unconfigured API key (HTTP 503), prompt injection resistance, unsupported language rejection (HTTP 422).
+    - SQLite transactional rollback on constraint violation and multilingual UTF-8/Devanagari storage fidelity.
 - [ ] **Step 4: Performance, Concurrency & Memory Audit**
   - Verify FastAPI async concurrency and sub-second response times.
   - Verify Flutter UI frame rates, memory footprint, and image garbage collection.
