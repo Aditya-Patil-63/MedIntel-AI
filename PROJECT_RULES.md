@@ -217,21 +217,21 @@ MedIntel-AI/
 - Strict non-diagnostic safety boundary (LOW, NORMAL, HIGH, CRITICAL classification only)
 - Comprehensive test suite passing (165/165 tests)
 
-### Phase 7 — ML Risk Models
+### Phase 7 — ML Risk Models ✅
 - Dataset acquisition (public medical datasets)
 - Data preprocessing and feature engineering
 - Model training: Diabetes, Heart Disease, Kidney Disease
 - Model evaluation and validation
 - Model serialization and inference API
 
-### Phase 8 — Generative AI Integration
-- Claude API integration
+### Phase 8 — Generative AI Integration ✅
+- Claude & Gemini API integration with offline deterministic mock provider
 - Prompt engineering for medical explanations
 - Simple-language explanation generation
 - Safety guardrails and disclaimer injection
 - Multilingual output: English, Hindi, Marathi, Gujarati
 
-### Phase 9 — Flutter Mobile App
+### Phase 9 — Flutter Mobile App ✅
 - Flutter project initialization
 - Camera capture and PDF upload UI
 - API integration with backend
@@ -240,7 +240,7 @@ MedIntel-AI/
 - Report history and downloadable summaries
 - Multilingual UI support
 
-### Phase 10 — Integration & Testing
+### Phase 10 — Integration & Testing 🟡 (In Progress)
 - End-to-end pipeline integration
 - Comprehensive testing (unit, integration, UI)
 - Performance optimization

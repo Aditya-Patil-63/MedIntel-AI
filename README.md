@@ -113,9 +113,9 @@ MedIntel-AI/
 | 5     | Handwriting Recognition           | ✅ Complete     |
 | 6     | Medical Reference Analysis        | ✅ Complete     |
 | 7     | ML Risk Models                    | ✅ Complete     |
-| 8     | Generative AI Integration         | 🟡 In Progress (Steps 1–3 Complete) |
-| 9     | Flutter Mobile App                | ⬜ Pending      |
-| 10    | Integration & Testing             | ⬜ Pending      |
+| 8     | Generative AI Integration         | ✅ Complete     |
+| 9     | Flutter Mobile App                | ✅ Complete     |
+| 10    | Integration & Testing             | 🟡 In Progress (Step 1 Complete) |
 | 11    | Documentation & Deployment        | ⬜ Pending      |
 
 See [PROJECT_RULES.md](PROJECT_RULES.md) for detailed phase descriptions and all project rules.
@@ -147,16 +147,24 @@ The following datasets have been selected, verified, and audited:
 
 ## Project Status
 
-**Current Phase: Phase 8 — Generative AI Explanation (Steps 1–3 Complete)**
+**Current Phase: Phase 10 — System Integration & Comprehensive Testing (In Progress)**
+
+- **Flutter Mobile Client (`mobile/`, `docs/PHASE9_MOBILE_ARCHITECTURE.md`)**:
+  - Phase 9 Complete: Modern cross-platform client with BLoC/Cubit state management (`UploadCubit`, `VerificationCubit`, `AnalysisCubit`, `HistoryCubit`).
+  - Native document ingestion via camera and file picker with client-side format and 10 MB size limits.
+  - Interactive User Verification Gate allowing review, corrections, and additions before clinical analysis.
+  - Parallel analysis dispatch orchestrating reference engine, ML risk predictions, and multilingual GenAI explanations.
+  - Snapshot-based in-memory session history with search, sorting, and deep inspection.
+  - Android API 36 compilation compatibility verified on physical device.
+  - 66 tests passing across 9 test suites (`flutter test`).
 
 - **Generative AI Explanation & Translation (`docs/PHASE8_GENAI_ARCHITECTURE.md`, `backend/app/schemas/genai.py`, `backend/app/services/genai_service.py`, `backend/app/api/genai.py`)**:
-  - Phase 8 Step 3: FastAPI GenAI service and offline mock API implemented.
+  - Phase 8 Complete: Production Gemini provider and deterministic offline mock provider integrated.
   - Pydantic contracts enforcing strict non-diagnostic, non-prescriptive communication.
-  - Decoupled `BaseGenAIProvider` abstract interface with offline deterministic `MockGenAIProvider`.
   - Service orchestration layer (`GenAIExplanationService`) managing provider factory, user verification safety gate (`is_user_verified`), multilingual translation dispatch, and SQLite `Summary` persistence.
   - FastAPI endpoints: `POST /api/v1/genai/explain` and `GET /api/v1/genai/status`.
   - Multilingual translation support across English (`en`), Hindi (`hi`), Marathi (`mr`), and Gujarati (`gu`) strictly preserving numerical and clinical invariance.
-  - Zero external API calls, zero network dependencies, 100% offline test coverage (35 Phase 8 tests).
+  - 35 Phase 8 tests passing.
 
 - **ML Risk Models & FastAPI Integration (`ml/`, `backend/app/api/ml_risk.py`, `backend/app/services/ml_risk_service.py`)**:
   - Leakage-safe 5-fold Stratified Cross-Validation across Diabetes, Heart Disease, and Chronic Kidney Disease.

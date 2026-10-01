@@ -1,39 +1,63 @@
 # Tests — MedIntel AI
 
-Test suite for MedIntel AI.
+Comprehensive test suite covering all backend services, ML inference pipelines, reference engines, GenAI integrations, and Flutter mobile client workflows.
 
-## Status
+---
 
-- **Phase 2 Backend Tests:** `backend/tests/test_phase2.py` (11 passing tests)
-- **Phase 3 Data Preparation Tests:** `tests/test_phase3_data.py` (24 passing tests)
-- **Phase 4 PDF & OCR Pipeline Tests:** `tests/test_phase4_ocr.py` (20 passing tests)
-- **Phase 5 Handwriting Recognition Tests:** `tests/test_phase5_handwriting.py` (18 passing tests)
-- **Total Passing Tests:** 73 tests
+## 1. Test Suite Summary
 
-## Running Tests
+| Subsystem / Phase | Test File Location | Passing Tests | Scope |
+|---|---|:---:|---|
+| **Phase 2:** Backend Foundation | `backend/tests/test_phase2.py` | 11 | FastAPI lifecycle, health endpoints, SQLite schema |
+| **Phase 3:** Data Preparation | `tests/test_phase3_data.py` | 24 | Deterministic data cleaning, encoding, validation |
+| **Phase 4:** PDF & OCR Pipeline | `tests/test_phase4_ocr.py` | 20 | pdfplumber, OCR engine adapters, format checks |
+| **Phase 5:** Handwriting Recognition | `tests/test_phase5_handwriting.py` | 18 | TrOCR transforms, CER/WER metrics, dataset splits |
+| **Phase 6:** Medical Reference Engine | `tests/test_phase6_parser.py`<br>`tests/test_phase6_reference.py`<br>`backend/tests/test_reference_api.py` | 103 | Deterministic parser, ADA/WHO reference classification, verification gate |
+| **Phase 7:** ML Risk Models & API | `tests/test_phase7_ml.py`<br>`tests/test_phase7_audit.py`<br>`tests/test_phase7_api.py` | 48 | Pipeline inference, model loading, `INSUFFICIENT_FEATURES` handling |
+| **Phase 8:** Generative AI & Translation | `tests/test_phase8_schemas.py`<br>`tests/test_phase8_api.py`<br>`tests/test_phase8_gemini.py` | 35 | Gemini provider, offline mock, multilingual invariance (EN, HI, MR, GU) |
+| **Phase 9:** Mobile Flutter Client | `mobile/test/*_test.dart` (9 suites) | 66 | Cubits, UI widgets, verified snapshot, end-to-end integration |
+| **Phase 10:** E2E Pipeline Integration | `tests/test_phase10_e2e_integration.py` | 9 | Unified document→analysis→ML→GenAI flow, gate enforcement, persistence |
+| **Total Test Suite** | **Full Repository** | **334 Tests** | **Zero Failures, 100% Passing** |
+
+---
+
+## 2. Running Tests
+
+### Automated Cross-Subsystem Runner
+
+Execute the complete repository suite (backend pytest + Flutter mobile tests) in a single command:
+
+```powershell
+.\backend\venv\Scripts\python.exe scripts/run_cross_subsystem_tests.py
+```
+
+### Running Backend Tests (Python / Pytest)
 
 From the repository root:
 
-```bash
-# Run Phase 5 Handwriting Recognition Tests
-.\backend\venv\Scripts\python.exe -m pytest tests/test_phase5_handwriting.py -v
+```powershell
+# Run complete backend suite
+.\backend\venv\Scripts\python.exe -m pytest -q
 
-# Run Phase 4 Document & OCR Tests
-.\backend\venv\Scripts\python.exe -m pytest tests/test_phase4_ocr.py -v
-
-# Run Phase 3 Data Preparation Tests
-.\backend\venv\Scripts\python.exe -m pytest tests/test_phase3_data.py -v
-
-# Run Phase 2 Backend Tests
-.\backend\venv\Scripts\python.exe -m pytest backend/tests/test_phase2.py -v
-
-# Run All Tests
-.\backend\venv\Scripts\python.exe -m pytest -v
+# Run specific phase test suite
+.\backend\venv\Scripts\python.exe -m pytest tests/test_phase10_e2e_integration.py -v
 ```
 
-## Structure
+### Running Mobile Client Tests (Flutter)
 
-- `tests/test_phase5_handwriting.py` — Tests for Phase 5 Handwriting Recognition: configuration validation for RTX 3050 4GB VRAM (effective batch size 16, gradient checkpointing), aspect-ratio preserving transforms (raw, preprocessed, and canvas dimensions), manifest loading and split filtering, missing-image detection, split integrity (7,101 train / 1,107 val / 1,776 test, chinmays18 excluded), metric calculations (CER, WER, Exact Match on decoded text predictions), dataset-specific evaluation grouping (RxHandBD, Doctor BD, Combined), trainer test-set isolation protection, TrOCREngineAdapter BaseOCREngine compliance, and non-clinical confidence score labeling. Zero GPU and zero weight downloads required.
-- `tests/test_phase4_ocr.py` — Tests for pure-Python synthetic PDF generation, single/multi-page digital extraction (`pdfplumber`), blank PDF warnings, malformed file rejection, file size limit enforcement, unsupported extension rejection, Tesseract adapter fallback, EasyOCR adapter lazy loading, mock OCR processing, FastAPI `POST /api/v1/extract` endpoint integration, and mandatory medical safety disclaimer verification (using synthetic test data only; zero real patient data).
-- `tests/test_phase3_data.py` — Tests for external dataset path handling, missing-file handling, expected columns, deterministic cleaning logic, target encoding, and repository cleanliness checks (all using synthetic data; no real patient data).
-- `backend/tests/test_phase2.py` — Tests for FastAPI startup, health-check endpoint, and SQLite schema.
+From the `mobile/` directory:
+
+```powershell
+cd mobile
+flutter test
+```
+
+---
+
+## 3. Medical Safety & Privacy Invariants
+
+All tests strictly comply with [PROJECT_RULES.md](../PROJECT_RULES.md) Section 7:
+1. **Zero Real Patient Data:** All test cases use synthetic laboratory values and anonymized mock profiles.
+2. **Deterministic Classification:** Reference ranges are verified against authoritative medical standards (ADA, WHO, Harrison's, Mayo Clinic).
+3. **Non-Diagnostic Assurance:** ML outputs are validated strictly as risk indicators with disclaimers.
+4. **Offline Isolation:** Backend unit/integration tests run completely offline with zero external network dependencies.
