@@ -116,7 +116,7 @@ MedIntel-AI/
 | 8     | Generative AI Integration         | ✅ Complete     |
 | 9     | Flutter Mobile App                | ✅ Complete     |
 | 10    | Integration & Testing             | ✅ Complete     |
-| 11    | Documentation & Deployment        | ⬜ Pending      |
+| 11    | Documentation & Deployment        | ✅ Complete     |
 
 See [PROJECT_RULES.md](PROJECT_RULES.md) for detailed phase descriptions and all project rules.
 
@@ -147,7 +147,15 @@ The following datasets have been selected, verified, and audited:
 
 ## Project Status
 
-**Current Phase: Phase 10 — System Integration & Comprehensive Testing (Complete ✅)**
+**Current Status: All Phases Complete (Phases 1–11 ✅) — Production & Defense Ready**
+
+- **Packaging, Deployment & Capstone Documentation (`Dockerfile`, `docker-compose.yml`, `docs/`)**:
+  - Phase 11 Complete: Multi-stage Debian slim `Dockerfile` with bundled Tesseract OCR, OpenCV, and FastAPI Uvicorn engine, orchestrated with `docker-compose.yml` and persistent volume mounts.
+  - Complete operations and deployment guide in [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md).
+  - Interactive end-to-end clinical pipeline demo runner (`scripts/run_demo.py`) with support for interactive and automated CLI walk-throughs across scenarios A (Normal), B (Elevated Risk), and C (Critical Alert) in English, Hindi, Marathi, and Gujarati.
+  - Comprehensive academic & engineering final capstone report in [docs/CAPSTONE_PROJECT_REPORT.md](docs/CAPSTONE_PROJECT_REPORT.md).
+  - End-user patient & clinician application manual in [docs/USER_MANUAL.md](docs/USER_MANUAL.md).
+  - 20-slide presentation deck outline, speaker notes, and committee defense guide in [docs/PRESENTATION_DECK.md](docs/PRESENTATION_DECK.md).
 
 - **System-Wide Integration & Resilience Testing (`docs/PHASE10_INTEGRATION_AND_TESTING.md`, `docs/PHASE10_PERFORMANCE_AND_CONCURRENCY_REPORT.md`)**:
   - Phase 10 Complete: Unified end-to-end clinical workflow verified across document ingestion (PDF/OCR), deterministic reference parsing, verification safety gating, parallel ML risk prediction, multilingual GenAI explanations (EN, HI, MR, GU), and SQLite persistence.

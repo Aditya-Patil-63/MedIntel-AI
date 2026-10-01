@@ -18,3 +18,7 @@ This directory contains comprehensive architectural guides, benchmark reports, a
 | **Phase 9** | Mobile App Architecture | [PHASE9_MOBILE_ARCHITECTURE.md](PHASE9_MOBILE_ARCHITECTURE.md) | Flutter client layered architecture, BLoC/Cubit state, UI screens, and session history |
 | **Phase 10** | Integration & Testing | [PHASE10_INTEGRATION_AND_TESTING.md](PHASE10_INTEGRATION_AND_TESTING.md) | System-wide integration flow, cross-subsystem test matrix, and resilience strategy |
 | **Phase 10** | Performance & Concurrency Audit | [PHASE10_PERFORMANCE_AND_CONCURRENCY_REPORT.md](PHASE10_PERFORMANCE_AND_CONCURRENCY_REPORT.md) | Empirical latency benchmarks, throughput metrics, in-memory caching, and memory stability |
+| **Phase 11** | Operations & Deployment | [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Containerization with Docker & Compose, local setup, mobile release, and operations |
+| **Phase 11** | Capstone Project Report | [CAPSTONE_PROJECT_REPORT.md](CAPSTONE_PROJECT_REPORT.md) | Comprehensive final academic & engineering capstone project report across all 11 phases |
+| **Phase 11** | User Manual | [USER_MANUAL.md](USER_MANUAL.md) | Step-by-step patient & clinician guide for document upload, verification, and interpretation |
+| **Phase 11** | Presentation Deck & Defense | [PRESENTATION_DECK.md](PRESENTATION_DECK.md) | Slide-by-slide presentation deck structure, speaker notes, and committee Q&A defense matrix |

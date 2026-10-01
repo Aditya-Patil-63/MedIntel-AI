@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# Python virtual environments & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+venv/
+ENV/
+env/
+.venv/
+
+# Caches & Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Mobile (Flutter client packaged separately)
+mobile/
+
+# Documentation & large artifacts
+docs/
+reports/*.pdf
+tmp/
+scratch/

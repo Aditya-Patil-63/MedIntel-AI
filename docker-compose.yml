@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medintel-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MEDINTEL_ENV=production
+      - PORT=8000
+      - GENAI_PROVIDER=${GENAI_PROVIDER:-mock}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - DEFAULT_OCR_ENGINE=tesseract
+      - DATABASE_URL=sqlite:////app/database/medintel.db
+      - MEDINTEL_ML_MODELS_DIR=/app/ml/models
+      - MAX_UPLOAD_SIZE_BYTES=10485760
+    volumes:
+      - medintel_db_data:/app/database
+      - ${MEDINTEL_DATA_DIR:-./ml_models_local}:/app/ml/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  medintel_db_data:
+    driver: local
