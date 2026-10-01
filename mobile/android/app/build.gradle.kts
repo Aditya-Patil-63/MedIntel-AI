@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.medintel.ai.medintel_mobile"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
