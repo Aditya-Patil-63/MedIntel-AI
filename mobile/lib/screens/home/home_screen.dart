@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/api_service.dart';
-import '../../state/verification/verification_cubit.dart';
-import '../../state/verification/verification_state.dart';
-import '../../widgets/disclaimer_banner.dart';
-import '../../widgets/status_card.dart';
+import '../../state/auth/auth_cubit.dart';
+import '../../state/history/history_cubit.dart';
+import '../../state/history/history_state.dart';
 import '../history/history_screen.dart';
 import '../results/results_screen.dart';
+import '../settings/settings_screen.dart';
 import '../upload/upload_screen.dart';
 import '../verification/verification_screen.dart';
 
+/// Redesigned production-grade Home Dashboard for MedIntel AI.
+///
+/// Balances clinical precision with modern patient-friendly clarity,
+/// featuring a prominent Analyze Hero, interactive workflow guide,
+/// compact connection indicator, and instant pipeline access.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -20,12 +24,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _backendStatus = 'Checking...';
-  String _mlStatus = 'Checking...';
-  String _genaiStatus = 'Checking...';
   bool _isBackendOk = false;
-  bool _isMlOk = false;
-  bool _isGenAiOk = false;
 
   @override
   void initState() {
@@ -34,58 +33,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _checkServices() async {
+    if (!mounted) return;
     final apiService = context.read<ApiService>();
 
-    // 1. Health
     try {
       final health = await apiService.getHealth();
+      final statusVal = health['status']?.toString().toLowerCase();
       if (mounted) {
         setState(() {
-          _isBackendOk = health['status'] == 'ok';
-          _backendStatus = health['status']?.toString() ?? 'online';
+          _isBackendOk = statusVal == 'healthy' || statusVal == 'ok';
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           _isBackendOk = false;
-          _backendStatus = 'offline';
-        });
-      }
-    }
-
-    // 2. ML Status
-    try {
-      final ml = await apiService.getMLStatus();
-      if (mounted) {
-        setState(() {
-          _isMlOk = ml.status == 'OK';
-          _mlStatus = ml.status;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isMlOk = false;
-          _mlStatus = 'unavailable';
-        });
-      }
-    }
-
-    // 3. GenAI Status
-    try {
-      final genai = await apiService.getGenAIStatus();
-      if (mounted) {
-        setState(() {
-          _isGenAiOk = genai.available;
-          _genaiStatus = genai.status;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isGenAiOk = false;
-          _genaiStatus = 'unavailable';
         });
       }
     }
@@ -98,222 +60,740 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: AppColors.primary,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
-                Icons.medical_services_outlined,
+                Icons.local_hospital_rounded,
                 color: Colors.white,
                 size: 20,
               ),
             ),
             const SizedBox(width: 10),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppConstants.appName,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Phase 9 Mobile Client',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
+            const Text(
+              'MedIntel AI',
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.3,
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh Status',
-            onPressed: _checkServices,
+            icon: Badge(
+              isLabelVisible: true,
+              backgroundColor:
+                  _isBackendOk ? AppColors.normal : const Color(0xFFF59E0B),
+              smallSize: 8,
+              child: const Icon(Icons.settings_outlined, size: 22),
+            ),
+            tooltip: _isBackendOk
+                ? 'Settings (Backend Connected)'
+                : 'Settings (Backend Offline)',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ).then((_) => _checkServices());
+            },
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Mandatory Educational Disclaimer Banner
-              const DisclaimerBanner(),
-              const SizedBox(height: 16),
+        child: RefreshIndicator(
+          onRefresh: _checkServices,
+          color: AppColors.primary,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 0. User Welcome Header
+                _buildUserWelcome(context),
 
-              // 2. Backend Subsystems Status Overview
-              const Text(
-                'Subsystem Status',
-                style: TextStyle(
-                  fontSize: 14,
+                // 1. Clinical Quick Actions (2x2 Grid)
+                _buildQuickActionsGrid(context),
+                const SizedBox(height: 18),
+
+                // 2. Primary Hero Action Card: "Analyze a Medical Report"
+                _buildHeroActionCard(context),
+                const SizedBox(height: 18),
+
+                // 3. How It Works - 3-Step Guided Workflow
+                _buildWorkflowGuide(),
+                const SizedBox(height: 18),
+
+                // 4. Recent Reports Preview
+                _buildRecentReportsSection(context),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: 0,
+        onDestinationSelected: (index) {
+          if (index == 1) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadScreen()));
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()));
+          } else if (index == 3) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())).then((_) => _checkServices());
+          }
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard, color: AppColors.primary),
+            label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.document_scanner_outlined),
+            selectedIcon: Icon(Icons.document_scanner, color: AppColors.primary),
+            label: 'Analyze',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history, color: AppColors.primary),
+            label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings, color: AppColors.primary),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserWelcome(BuildContext context) {
+    final user = context.watch<AuthCubit>().currentUser;
+    if (user == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+              child: Text(
+                user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                style: const TextStyle(
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textSecondary,
+                  color: AppColors.primary,
                 ),
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  StatusCard(
-                    title: 'Backend',
-                    status: _backendStatus,
-                    isOk: _isBackendOk,
-                    onTap: _checkServices,
+                  Text(
+                    'Welcome, ${user.name}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  StatusCard(
-                    title: 'ML Models',
-                    status: _mlStatus,
-                    isOk: _isMlOk,
-                    onTap: _checkServices,
-                  ),
-                  StatusCard(
-                    title: 'GenAI',
-                    status: _genaiStatus,
-                    isOk: _isGenAiOk,
-                    onTap: _checkServices,
+                  Text(
+                    user.email,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.textSecondary),
+              tooltip: 'Sign Out',
+              onPressed: () {
+                context.read<AuthCubit>().logout();
+                context.read<HistoryCubit>().clearHistory();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              // 3. Clinical Pipeline Actions
-              const Text(
-                'Clinical Pipeline',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textSecondary,
+  Widget _buildHeroActionCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF0F766E), // Deep Medical Teal
+            Color(0xFF115E59), // Rich Pine Teal
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F766E).withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const UploadScreen()),
+            );
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.auto_awesome,
+                              color: Colors.white, size: 14),
+                          SizedBox(width: 5),
+                          Text(
+                            'AI-Powered Clinical Analysis',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              _buildActionTile(
-                icon: Icons.upload_file,
-                title: 'Upload Report',
-                subtitle: 'Select PDF or image medical report (<=10 MB)',
-                color: AppColors.primary,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const UploadScreen()),
-                  );
-                },
-              ),
-              BlocBuilder<VerificationCubit, VerificationState>(
-                builder: (context, state) {
-                  String sub = 'Confirm extracted lab values (mandatory)';
-                  if (state.measurements.isNotEmpty) {
-                    sub = state.isVerified
-                        ? '${state.measurements.length} measurements verified'
-                        : '${state.unverifiedCount} unverified measurements pending review';
-                  }
-
-                  return _buildActionTile(
-                    icon: state.isVerified
-                        ? Icons.verified
-                        : Icons.verified_user_outlined,
-                    title: 'User Verification Gate',
-                    subtitle: sub,
-                    color: state.isVerified
-                        ? AppColors.normal
-                        : AppColors.secondary,
-                    trailingBadge: state.unverifiedCount > 0
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.highBg,
-                              borderRadius: BorderRadius.circular(10),
+                const SizedBox(height: 16),
+                const Text(
+                  'Analyze a Medical Report',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Upload a medical report to understand your test results in plain language with validated reference ranges.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.upload_file_rounded,
+                              color: AppColors.primaryDark, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Upload Document',
+                            style: TextStyle(
+                              color: AppColors.primaryDark,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
                             ),
-                            child: Text(
-                              '${state.unverifiedCount} pending',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.high,
-                              ),
-                            ),
-                          )
-                        : null,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const VerificationScreen()),
-                      );
-                    },
-                  );
-                },
-              ),
-              _buildActionTile(
-                icon: Icons.analytics_outlined,
-                title: 'Analysis & ML Risk',
-                subtitle: 'Deterministic reference range & ML risk estimation',
-                color: AppColors.high,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ResultsScreen()),
-                  );
-                },
-              ),
-              _buildActionTile(
-                icon: Icons.history,
-                title: 'Report History',
-                subtitle: 'Review past reports and clinical summaries',
-                color: AppColors.textSecondary,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                  );
-                },
-              ),
-            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'PDF • JPG • PNG',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildActionTile({
-    required IconData icon,
+  Widget _buildWorkflowGuide() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'How MedIntel AI Works',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _buildWorkflowStep(
+                stepNum: '1',
+                title: 'Upload',
+                subtitle: 'Digital PDF or lab image',
+                icon: Icons.upload_outlined,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildWorkflowStep(
+                stepNum: '2',
+                title: 'Verify',
+                subtitle: 'Confirm extracted values',
+                icon: Icons.checklist_rounded,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildWorkflowStep(
+                stepNum: '3',
+                title: 'Insights',
+                subtitle: 'Reference ranges & AI',
+                icon: Icons.insights_rounded,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWorkflowStep({
+    required String stepNum,
     required String title,
     required String subtitle,
-    required Color color,
-    Widget? trailingBadge,
-    required VoidCallback onTap,
+    required IconData icon,
   }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  stepNum,
+                  style: const TextStyle(
+                    color: AppColors.primaryDark,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Icon(icon, size: 18, color: AppColors.primary),
+            ],
           ),
-          child: Icon(icon, color: color),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 10,
+              color: AppColors.textSecondary,
+              height: 1.25,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentReportsSection(BuildContext context) {
+    return BlocBuilder<HistoryCubit, HistoryState>(
+      builder: (context, state) {
+        final records = state is HistoryLoaded ? state.records : [];
+        if (records.isEmpty) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySurface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.history_toggle_off_rounded,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'No Reports Analyzed Yet',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Your completed report summaries will appear here for quick access.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final latest = records.first;
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.description_outlined,
+                        color: AppColors.primaryDark,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  latest.documentName,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.normalBg,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${latest.verifiedMeasurementCount} tests',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.normal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Recent • ${latest.formattedDate}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textMuted,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickActionsGrid(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Quick Clinical Actions',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.2,
+          ),
         ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionTile(
+                context,
+                title: 'Upload Report',
+                subtitle: 'PDF or image',
+                icon: Icons.upload_file_rounded,
+                iconColor: AppColors.primary,
+                bgColor: AppColors.primarySurface,
+                destination: const UploadScreen(),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildActionTile(
+                context,
+                title: 'User Verification Gate',
+                subtitle: 'Review values',
+                icon: Icons.verified_user_outlined,
+                iconColor: AppColors.secondary,
+                bgColor: AppColors.secondarySurface,
+                destination: const VerificationScreen(),
+              ),
+            ),
+          ],
         ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionTile(
+                context,
+                title: 'Analysis & ML Risk',
+                subtitle: 'Health models',
+                icon: Icons.analytics_outlined,
+                iconColor: const Color(0xFF2563EB),
+                bgColor: const Color(0xFFEFF6FF),
+                destination: const ResultsScreen(),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildActionTile(
+                context,
+                title: 'Report History',
+                subtitle: 'Past reports',
+                icon: Icons.history_rounded,
+                iconColor: const Color(0xFF7C3AED),
+                bgColor: const Color(0xFFF5F3FF),
+                destination: const HistoryScreen(),
+              ),
+            ),
+          ],
         ),
-        trailing: trailingBadge ??
-            const Icon(Icons.chevron_right, color: AppColors.textMuted),
-        onTap: onTap,
+      ],
+    );
+  }
+
+  Widget _buildActionTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required Color bgColor,
+    required Widget destination,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => destination),
+            ).then((_) => _checkServices());
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

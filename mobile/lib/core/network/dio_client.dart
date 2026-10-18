@@ -8,6 +8,17 @@ import '../errors/api_exception.dart';
 /// multipart/form-data requests (e.g. document extraction) automatically
 /// set the appropriate multipart boundary.
 class DioClient {
+  static String? _configuredBaseUrl;
+
+  /// Globally active base URL for HTTP requests.
+  static String get activeBaseUrl =>
+      _configuredBaseUrl ?? ApiConstants.baseUrl;
+
+  /// Sets the active base URL for new and existing instances.
+  static void setActiveBaseUrl(String url) {
+    _configuredBaseUrl = url.trim();
+  }
+
   late final Dio dio;
 
   DioClient({String? baseUrl, Dio? customDio}) {
@@ -16,7 +27,7 @@ class DioClient {
       return;
     }
 
-    final effectiveBaseUrl = baseUrl ?? ApiConstants.baseUrl;
+    final effectiveBaseUrl = baseUrl ?? activeBaseUrl;
 
     dio = Dio(
       BaseOptions(
@@ -56,13 +67,23 @@ class DioClient {
     );
   }
 
+  /// Updates the base URL on the active Dio instance.
+  void updateBaseUrl(String newUrl) {
+    final sanitized = newUrl.trim();
+    dio.options.baseUrl = sanitized;
+    _configuredBaseUrl = sanitized;
+  }
+
   static ApiException _mapDioException(DioException e) {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout ||
         e.type == DioExceptionType.connectionError) {
+      final currentUrl = e.requestOptions.baseUrl;
       return NetworkException(
-        message: 'Connection failed: ${e.message ?? "Server unreachable"}',
+        message:
+            'Unable to connect to MedIntel AI server ($currentUrl). '
+            'Please ensure the FastAPI backend is running and your connection mode is set correctly.',
         details: e.type.toString(),
       );
     }

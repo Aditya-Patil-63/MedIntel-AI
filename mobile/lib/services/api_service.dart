@@ -7,6 +7,8 @@ import '../models/extraction/document_extraction_result.dart';
 import '../models/genai/genai_explain_request.dart';
 import '../models/genai/genai_explain_response.dart';
 import '../models/genai/genai_status_response.dart';
+import '../models/auth/user_model.dart';
+import '../models/history/analysis_history_item.dart';
 import '../models/ml_risk/diabetes_risk_request.dart';
 import '../models/ml_risk/heart_disease_risk_request.dart';
 import '../models/ml_risk/kidney_disease_risk_request.dart';
@@ -61,6 +63,44 @@ abstract class ApiService {
   Future<GenAIExplainResponse> explainFindings(
     GenAIExplainRequest request,
   );
+
+  /// 11. User Registration
+  Future<UserModel> register({
+    required String name,
+    required String email,
+    required String password,
+    String? languagePreference,
+  });
+
+  /// 12. User Login
+  Future<UserModel> login({
+    required String email,
+    required String password,
+  });
+
+  /// 13. Get current profile
+  Future<UserModel?> getProfile();
+
+  /// 14. Set active bearer auth token
+  void setAuthToken(String? token);
+
+  /// 15. Get current auth token
+  String? get currentAuthToken;
+
+  /// 16. Fetch all reports for authenticated user
+  Future<List<AnalysisHistoryItem>> fetchUserReports();
+
+  /// 17. Save a report for authenticated user
+  Future<AnalysisHistoryItem> saveUserReport(AnalysisHistoryItem report);
+
+  /// 18. Delete a report for authenticated user
+  Future<void> deleteUserReport(String reportId);
+
+  /// 19. Current backend base URL
+  String get baseUrl;
+
+  /// 20. Update active backend base URL
+  void updateBaseUrl(String newUrl);
 }
 
 /// Concrete Dio implementation of ApiService.
@@ -71,12 +111,40 @@ class ApiServiceImpl implements ApiService {
       : _dio = dio ?? (dioClient ?? DioClient()).dio;
 
   @override
+  String get baseUrl => _dio.options.baseUrl;
+
+  @override
+  void updateBaseUrl(String newUrl) {
+    final sanitized = newUrl.trim();
+    _dio.options.baseUrl = sanitized;
+    DioClient.setActiveBaseUrl(sanitized);
+  }
+
+  @override
   Future<Map<String, dynamic>> getHealth() async {
     try {
       final response = await _dio.get(ApiConstants.health);
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
-      throw _unwrapException(e);
+      final unwrapped = _unwrapException(e);
+      if (unwrapped is NetworkException) {
+        final currentBase = _dio.options.baseUrl;
+        final candidates = [
+          ApiConstants.usbDeviceUrl,
+          ApiConstants.emulatorUrl,
+          ApiConstants.wifiLanUrl,
+        ];
+        for (final alt in candidates) {
+          if (alt == currentBase) continue;
+          try {
+            updateBaseUrl(alt);
+            final altResp = await _dio.get(ApiConstants.health);
+            return altResp.data as Map<String, dynamic>;
+          } catch (_) {}
+        }
+        updateBaseUrl(currentBase);
+      }
+      throw unwrapped;
     }
   }
 
@@ -114,7 +182,24 @@ class ApiServiceImpl implements ApiService {
         response.data as Map<String, dynamic>,
       );
     } on DioException catch (e) {
-      throw _unwrapException(e);
+      final unwrapped = _unwrapException(e);
+      if (unwrapped is NetworkException) {
+        final currentBase = _dio.options.baseUrl;
+        final altBase = currentBase == ApiConstants.usbDeviceUrl
+            ? ApiConstants.wifiLanUrl
+            : (currentBase == ApiConstants.wifiLanUrl
+                ? ApiConstants.usbDeviceUrl
+                : null);
+        if (altBase != null && altBase != currentBase) {
+          try {
+            updateBaseUrl(altBase);
+            return await extractDocument(filePath, engine: engine);
+          } catch (_) {
+            updateBaseUrl(currentBase);
+          }
+        }
+      }
+      throw unwrapped;
     }
   }
 
@@ -250,12 +335,128 @@ class ApiServiceImpl implements ApiService {
     }
   }
 
+  String? _authToken;
+
+  @override
+  String? get currentAuthToken => _authToken;
+
+  @override
+  void setAuthToken(String? token) {
+    _authToken = token;
+    if (token != null && token.isNotEmpty) {
+      _dio.options.headers['Authorization'] = 'Bearer $token';
+    } else {
+      _dio.options.headers.remove('Authorization');
+    }
+  }
+
+  @override
+  Future<UserModel> register({
+    required String name,
+    required String email,
+    required String password,
+    String? languagePreference,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.authRegister,
+        data: {
+          'name': name.trim(),
+          'email': email.trim().toLowerCase(),
+          'password': password,
+          'language_preference': languagePreference ?? 'english',
+        },
+        options: Options(contentType: 'application/json'),
+      );
+      final user = UserModel.fromJson(response.data as Map<String, dynamic>);
+      setAuthToken(user.token);
+      return user;
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<UserModel> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.authLogin,
+        data: {
+          'email': email.trim().toLowerCase(),
+          'password': password,
+        },
+        options: Options(contentType: 'application/json'),
+      );
+      final user = UserModel.fromJson(response.data as Map<String, dynamic>);
+      setAuthToken(user.token);
+      return user;
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<UserModel?> getProfile() async {
+    try {
+      final response = await _dio.get(ApiConstants.authMe);
+      return UserModel.fromJson(response.data as Map<String, dynamic>, token: _authToken);
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<List<AnalysisHistoryItem>> fetchUserReports() async {
+    try {
+      final response = await _dio.get(ApiConstants.reports);
+      final list = response.data as List<dynamic>;
+      return list
+          .map((item) => AnalysisHistoryItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<AnalysisHistoryItem> saveUserReport(AnalysisHistoryItem report) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.reports,
+        data: report.toJson(),
+        options: Options(contentType: 'application/json'),
+      );
+      return AnalysisHistoryItem.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<void> deleteUserReport(String reportId) async {
+    try {
+      await _dio.delete('${ApiConstants.reports}/$reportId');
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
   ApiException _unwrapException(DioException e) {
     if (e.error is ApiException) {
       return e.error as ApiException;
     }
+    String message = e.message ?? 'Unknown API error';
+    if (e.response?.data is Map<String, dynamic>) {
+      final data = e.response!.data as Map<String, dynamic>;
+      if (data.containsKey('detail') && data['detail'] != null) {
+        message = data['detail'].toString();
+      }
+    }
     return ApiException(
-      message: e.message ?? 'Unknown API error',
+      message: message,
       statusCode: e.response?.statusCode,
     );
   }

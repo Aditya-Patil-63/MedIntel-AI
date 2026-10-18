@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/errors/api_exception.dart';
 import '../../services/api_service.dart';
 import 'document_state.dart';
 
@@ -100,8 +101,14 @@ class DocumentCubit extends Cubit<DocumentState> {
           await apiService.extractDocument(filePath, engine: engine);
       emit(DocumentExtracted(result: result, filePath: filePath));
     } catch (e) {
+      String cleanMsg = e.toString();
+      if (e is ApiException) {
+        cleanMsg = e.message;
+      } else {
+        cleanMsg = cleanMsg.replaceFirst('ApiException: ', '');
+      }
       emit(DocumentError(
-        message: e.toString().replaceFirst('ApiException: ', ''),
+        message: cleanMsg,
         lastFilePath: filePath,
       ));
     }

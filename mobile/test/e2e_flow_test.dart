@@ -3,9 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medintel_mobile/app.dart';
 import 'package:medintel_mobile/models/analysis/verified_snapshot.dart';
+import 'package:medintel_mobile/models/auth/user_model.dart';
 import 'package:medintel_mobile/models/common/enums.dart';
 import 'package:medintel_mobile/models/extraction/document_extraction_result.dart';
 import 'package:medintel_mobile/models/extraction/page_extraction.dart';
+import 'package:medintel_mobile/models/history/analysis_history_item.dart';
 import 'package:medintel_mobile/models/genai/genai_explain_request.dart';
 import 'package:medintel_mobile/models/genai/genai_explain_response.dart';
 import 'package:medintel_mobile/models/genai/genai_status_response.dart';
@@ -30,6 +32,7 @@ import 'package:medintel_mobile/screens/verification/verification_screen.dart';
 import 'package:medintel_mobile/services/api_service.dart';
 import 'package:medintel_mobile/state/analysis/analysis_cubit.dart';
 import 'package:medintel_mobile/state/analysis/analysis_state.dart';
+import 'package:medintel_mobile/state/auth/auth_state.dart';
 import 'package:medintel_mobile/state/history/history_cubit.dart';
 import 'package:medintel_mobile/state/history/history_state.dart';
 import 'package:medintel_mobile/state/verification/verification_cubit.dart';
@@ -218,6 +221,78 @@ class FakeE2EApiService implements ApiService {
     );
   }
 
+  String? _authToken = 'test_token';
+
+  @override
+  String? get currentAuthToken => _authToken;
+
+  @override
+  void setAuthToken(String? token) {
+    _authToken = token;
+  }
+
+  @override
+  Future<UserModel> register({
+    required String name,
+    required String email,
+    required String password,
+    String? languagePreference,
+  }) async {
+    final user = UserModel(
+      id: 1,
+      name: name,
+      email: email,
+      token: 'test_token',
+      languagePreference: languagePreference ?? 'english',
+    );
+    setAuthToken(user.token);
+    return user;
+  }
+
+  @override
+  Future<UserModel> login({
+    required String email,
+    required String password,
+  }) async {
+    final user = UserModel(
+      id: 1,
+      name: 'Jane Doe',
+      email: email,
+      token: 'test_token',
+    );
+    setAuthToken(user.token);
+    return user;
+  }
+
+  @override
+  Future<UserModel?> getProfile() async {
+    return const UserModel(
+      id: 1,
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      token: 'test_token',
+    );
+  }
+
+  final List<AnalysisHistoryItem> _savedReports = [];
+
+  @override
+  Future<List<AnalysisHistoryItem>> fetchUserReports() async {
+    return List.unmodifiable(_savedReports);
+  }
+
+  @override
+  Future<AnalysisHistoryItem> saveUserReport(AnalysisHistoryItem report) async {
+    _savedReports.removeWhere((r) => r.id == report.id);
+    _savedReports.insert(0, report);
+    return report;
+  }
+
+  @override
+  Future<void> deleteUserReport(String reportId) async {
+    _savedReports.removeWhere((r) => r.id == reportId);
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -233,7 +308,17 @@ void main() {
     testWidgets('Full End-to-End Workflow: Ingestion → Verification → Analysis → History → Start New Analysis',
         (WidgetTester tester) async {
       await tester.pumpWidget(
-        MedIntelApp(apiService: fakeApi),
+        MedIntelApp(
+          apiService: fakeApi,
+          initialAuthState: const Authenticated(
+            UserModel(
+              id: 1,
+              name: 'Jane Doe',
+              email: 'jane@example.com',
+              token: 'fake_jwt_token',
+            ),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
 

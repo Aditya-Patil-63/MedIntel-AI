@@ -26,28 +26,47 @@ class GenAIExplanationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.primaryLight, width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.primaryLight, width: 1.2),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header with title and language selector
             Row(
               children: [
-                const Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  'Educational AI Explanation',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySurface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Educational AI Explanation',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.3,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 _buildLanguageSelector(context),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             const Text(
               'Synthesized from verified lab results and ML indicators.',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
@@ -62,22 +81,39 @@ class GenAIExplanationCard extends StatelessWidget {
 
   Widget _buildLanguageSelector(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.primaryLight.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.primaryLight),
+        color: AppColors.primarySurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.5)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<SupportedLanguage>(
           value: selectedLanguage,
           isDense: true,
-          icon: const Icon(Icons.arrow_drop_down, size: 18),
+          icon: const Icon(Icons.arrow_drop_down,
+              size: 18, color: AppColors.primary),
           items: const [
-            DropdownMenuItem(value: SupportedLanguage.english, child: Text('English', style: TextStyle(fontSize: 12))),
-            DropdownMenuItem(value: SupportedLanguage.hindi, child: Text('हिंदी (Hindi)', style: TextStyle(fontSize: 12))),
-            DropdownMenuItem(value: SupportedLanguage.marathi, child: Text('मराठी (Marathi)', style: TextStyle(fontSize: 12))),
-            DropdownMenuItem(value: SupportedLanguage.gujarati, child: Text('ગુજરાતી (Gujarati)', style: TextStyle(fontSize: 12))),
+            DropdownMenuItem(
+              value: SupportedLanguage.english,
+              child: Text('English',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            DropdownMenuItem(
+              value: SupportedLanguage.hindi,
+              child: Text('हिंदी (Hindi)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            DropdownMenuItem(
+              value: SupportedLanguage.marathi,
+              child: Text('मराठी (Marathi)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            DropdownMenuItem(
+              value: SupportedLanguage.gujarati,
+              child: Text('ગુજરાતી (Gujarati)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
           ],
           onChanged: isLoading
               ? null
@@ -98,11 +134,19 @@ class GenAIExplanationCard extends StatelessWidget {
         child: Center(
           child: Column(
             children: [
-              CircularProgressIndicator(strokeWidth: 2.5),
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: AppColors.primary,
+                ),
+              ),
               SizedBox(height: 12),
               Text(
                 'Generating clinical explanation...',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                style:
+                    TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -115,31 +159,37 @@ class GenAIExplanationCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.highBg,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.high),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.highBorder),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.info_outline, size: 18, color: AppColors.high),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.info_outline, size: 18, color: AppColors.high),
+                SizedBox(width: 8),
+                Text(
                   'Explanation Temporarily Unavailable',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.high),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: AppColors.high,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
               errorMessage!,
-              style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+              style:
+                  const TextStyle(fontSize: 12, color: AppColors.textPrimary),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             ElevatedButton.icon(
               icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Retry AI Explanation', style: TextStyle(fontSize: 12)),
+              label: const Text('Retry AI Explanation',
+                  style: TextStyle(fontSize: 12)),
               onPressed: onRetry,
             ),
           ],
@@ -163,30 +213,46 @@ class GenAIExplanationCard extends StatelessWidget {
         // Summary block
         Text(
           summaryText,
-          style: const TextStyle(fontSize: 13, height: 1.4, color: AppColors.textPrimary),
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.5,
+            color: AppColors.textPrimary,
+          ),
         ),
         if (exp.findings.isNotEmpty) ...[
           const SizedBox(height: 16),
           const Text(
             'Test Insights:',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: AppColors.textPrimary,
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           ...exp.findings.map(
             (f) => Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('• ',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary)),
                   Expanded(
                     child: RichText(
                       text: TextSpan(
-                        style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textPrimary,
+                          height: 1.4,
+                        ),
                         children: [
                           TextSpan(
-                            text: '${f.analyteName} (${f.observedValue ?? ""}): ',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            text:
+                                '${f.analyteName} (${f.observedValue ?? ""}): ',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           TextSpan(text: f.plainLanguageMeaning),
                         ],
@@ -202,21 +268,30 @@ class GenAIExplanationCard extends StatelessWidget {
           const SizedBox(height: 16),
           const Text(
             'Recommended Questions for Your Doctor:',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: AppColors.textPrimary,
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           ...exp.recommendedQuestionsForDoctor.map(
             (q) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.help_outline, size: 14, color: AppColors.primary),
-                  const SizedBox(width: 6),
+                  const Icon(Icons.help_outline,
+                      size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       q,
-                      style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                        height: 1.35,
+                      ),
                     ),
                   ),
                 ],

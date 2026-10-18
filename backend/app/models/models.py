@@ -57,6 +57,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=True, comment="Salted hash of user password")
     language_preference = Column(
         String(20), nullable=False, default="english",
         comment="Preferred language: english, hindi, marathi, gujarati",

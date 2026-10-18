@@ -19,41 +19,42 @@ class VerificationStatusChip extends StatelessWidget {
       case VerificationItemStatus.unverified:
         bg = AppColors.highBg;
         fg = AppColors.high;
-        icon = Icons.pending_outlined;
-        label = 'UNVERIFIED';
+        icon = Icons.pending_actions_outlined;
+        label = 'Needs Review';
         break;
       case VerificationItemStatus.confirmed:
         bg = AppColors.normalBg;
         fg = AppColors.normal;
         icon = Icons.check_circle_outline;
-        label = 'CONFIRMED';
+        label = 'Confirmed';
         break;
       case VerificationItemStatus.corrected:
         bg = AppColors.lowBg;
         fg = AppColors.low;
-        icon = Icons.edit_note;
-        label = 'CORRECTED';
+        icon = Icons.edit_note_outlined;
+        label = 'Corrected';
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: fg.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: fg.withValues(alpha: 0.35), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: fg),
-          const SizedBox(width: 4),
+          const SizedBox(width: 5),
           Text(
             label,
             style: TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               color: fg,
+              letterSpacing: -0.1,
             ),
           ),
         ],

@@ -21,8 +21,8 @@ class ReferenceFindingsCard extends StatelessWidget {
       return Card(
         color: AppColors.criticalBg,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: AppColors.critical),
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.criticalBorder),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -36,7 +36,10 @@ class ReferenceFindingsCard extends StatelessWidget {
                   children: [
                     const Text(
                       'Reference Analysis Error',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.critical),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.critical,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(errorMessage!, style: const TextStyle(fontSize: 13)),
@@ -55,39 +58,63 @@ class ReferenceFindingsCard extends StatelessWidget {
 
     return Card(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.divider),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.biotech_outlined, color: AppColors.primary, size: 22),
-                const SizedBox(width: 8),
-                const Text(
-                  'Laboratory Reference Findings',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryLight.withValues(alpha: 0.15),
+                    color: AppColors.primarySurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.biotech_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Laboratory Reference Findings',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.3,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${response!.totalClassified}/${response!.totalSubmitted} Classified',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    '${response!.totalClassified}/${response!.totalSubmitted} Evaluated',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryDark,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             const Text(
-              'Deterministic evaluation against authoritative clinical laboratory intervals.',
+              'Deterministic classification against published medical laboratory intervals.',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
             const Divider(height: 24),
@@ -95,7 +122,7 @@ class ReferenceFindingsCard extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: response!.results.length,
-              separatorBuilder: (_, _) => const Divider(height: 16),
+              separatorBuilder: (_, _) => const Divider(height: 20),
               itemBuilder: (context, index) {
                 final item = response!.results[index];
                 return _buildAnalyteRow(context, item);
@@ -120,13 +147,20 @@ class ReferenceFindingsCard extends StatelessWidget {
                 children: [
                   Text(
                     item.canonicalName ?? item.originalTestName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   if (item.canonicalName != null &&
                       item.canonicalName != item.originalTestName)
                     Text(
                       'Reported as: ${item.originalTestName}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                 ],
               ),
@@ -138,20 +172,27 @@ class ReferenceFindingsCard extends StatelessWidget {
         const SizedBox(height: 6),
         Row(
           children: [
-            Text(
-              'Value: ',
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            const Text(
+              'Observed: ',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
             Text(
               '${item.numericValue ?? item.originalValueText ?? "N/A"} ${item.normalizedUnit ?? item.unit ?? ""}',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryDark,
+              ),
             ),
             if (item.referenceRange != null) ...[
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Normal: ${item.referenceRange!.normalLow ?? "?"} - ${item.referenceRange!.normalHigh ?? "?"} ${item.referenceRange!.unit}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  'Range: ${item.referenceRange!.normalLow ?? "?"} - ${item.referenceRange!.normalHigh ?? "?"} ${item.referenceRange!.unit}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -159,10 +200,14 @@ class ReferenceFindingsCard extends StatelessWidget {
           ],
         ),
         if (item.referenceSource != null) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             'Source: ${item.referenceSource}',
-            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ],
         if (item.warnings.isNotEmpty) ...[
@@ -173,7 +218,11 @@ class ReferenceFindingsCard extends StatelessWidget {
                 const Icon(Icons.info_outline, size: 12, color: AppColors.high),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: Text(w, style: const TextStyle(fontSize: 11, color: AppColors.high)),
+                  child: Text(
+                    w,
+                    style:
+                        const TextStyle(fontSize: 11, color: AppColors.high),
+                  ),
                 ),
               ],
             ),
@@ -199,7 +248,7 @@ class ReferenceFindingsCard extends StatelessWidget {
         case AnalyteClassification.normal:
           bg = AppColors.normalBg;
           fg = AppColors.normal;
-          icon = Icons.check_circle_outline;
+          icon = Icons.check;
           break;
         case AnalyteClassification.high:
           bg = AppColors.highBg;
@@ -209,42 +258,48 @@ class ReferenceFindingsCard extends StatelessWidget {
         case AnalyteClassification.critical:
           bg = AppColors.criticalBg;
           fg = AppColors.critical;
-          icon = Icons.warning_rounded;
+          icon = Icons.warning_amber_rounded;
           break;
       }
 
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: fg.withValues(alpha: 0.4)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: fg.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 13, color: fg),
+            Icon(icon, size: 12, color: fg),
             const SizedBox(width: 4),
             Text(
-              c.value,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: fg),
+              c.value.toUpperCase(),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: fg,
+              ),
             ),
           ],
         ),
       );
     }
 
-    // Non-classified status
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade300),
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
-        item.analysisStatus.replaceAll('_', ' '),
-        style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+        item.analysisStatus,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textSecondary,
+        ),
       ),
     );
   }

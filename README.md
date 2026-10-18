@@ -29,6 +29,9 @@ MedIntel AI is an intelligent mobile application that analyzes medical reports a
 | 11 | Multilingual: English, Hindi, Marathi, Gujarati |
 | 12 | Report and history storage                   |
 | 13 | Downloadable health summaries                |
+| 14 | Secure user authentication & password hashing (PBKDF2-HMAC-SHA256) |
+| 15 | Strict user-partitioned report isolation (private SQLite data per user) |
+| 16 | Modern healthcare mobile design system & connection settings |
 
 ---
 
@@ -117,6 +120,7 @@ MedIntel-AI/
 | 9     | Flutter Mobile App                | ✅ Complete     |
 | 10    | Integration & Testing             | ✅ Complete     |
 | 11    | Documentation & Deployment        | ✅ Complete     |
+| Post  | Mobile UI/UX Redesign & User Authentication | ✅ Complete (19 Oct 2026) |
 
 See [PROJECT_RULES.md](PROJECT_RULES.md) for detailed phase descriptions and all project rules.
 
@@ -206,3 +210,121 @@ The following datasets have been selected, verified, and audited:
   - Dataset-specific performance: **Doctor Prescription BD Test**: 5.55% CER, 8.06% WER, 91.83% Exact Match; **RxHandBD Test**: 28.78% CER, 63.30% WER, 53.36% Exact Match.
   - Complete benchmark results, error categorization, and safety boundaries documented in [docs/PHASE5_HANDWRITING_RESULTS.md](docs/PHASE5_HANDWRITING_RESULTS.md).
   - Full regression test suite passing (73/73 tests).
+
+---
+
+## 🚀 Latest Development Progress — 19 October 2026
+
+### 1. Complete Mobile UI/UX Redesign
+- **Premium Healthcare Aesthetic**: Replaced the developer prototype with a calm, trustworthy medical design system utilizing Deep Teal (`#006D77`), Mint accents (`#83C5BE`), crisp white cards (`#FFFFFF`), and soft background slate (`#F8F9FA`).
+- **User-Centric Navigation**: Implemented a responsive bottom navigation bar (`Dashboard`, `Analyze`, `History`, `Settings`) structured for ordinary patients and non-technical users.
+- **Home Dashboard**: Replaced technical banners with an intuitive hero card (*"Analyze a Medical Report"*), a clear 3-step explainer (*"How MedIntel AI Works"*), and quick clinical action cards.
+- **Workflow & Layout Consistency**: Redesigned Upload, Verification Gate, Analysis Results, and History screens with zero RenderFlex overflows across both compact and large Android viewports.
+
+### 2. User Authentication & Security System
+- **App Entry Gate**: Unauthenticated users are immediately presented with the clean **MedIntel AI Sign In** screen on startup.
+- **Account Registration**: Added a dedicated **Create Account** screen with real-time form validation (email format, matching passwords, minimum length).
+- **Cryptographic Password Protection**:
+  - Passwords hashed with `PBKDF2-HMAC-SHA256` using 100,000 iterations and a unique 16-byte cryptographically random salt per user.
+  - Zero plaintext passwords stored in the database.
+- **Session Management**: HMAC-SHA256 signed bearer tokens with timestamped expiration.
+- **State Machine**: Powered by `AuthCubit` (`Unauthenticated`, `AuthLoading`, `Authenticated`, `AuthError`).
+
+### 3. User-Partitioned SQLite Database Isolation
+- **Strict Data Partitioning**: All report storage (`POST /api/v1/reports`, `GET /api/v1/reports`, `DELETE /api/v1/reports/{id}`) is strictly bound to `current_user.id`.
+- **Privacy Guarantees**: A user can never view, mutate, or delete another user's clinical reports.
+- **Multi-Tenant Protection**: Attempts to access foreign report IDs return HTTP 404.
+- **Clean Session Teardown**: Signing out wipes the local authentication state and cleans cached history to prevent cross-account data leakage on shared mobile devices.
+
+### 4. Settings & Network Connectivity Hub
+- **User Profile Card**: Displays user avatar, full name, email, and a verified green status badge: *"User Isolation: Reports are private to this account"*.
+- **Flexible Network Configuration**:
+  - Quick presets: **Wi-Fi LAN (Auto)**, **USB Cable (Phone)**, and **Android Emulator**.
+  - Custom Base URL input with live ping/health check button.
+  - Subsystem diagnostic indicators for backend health and API responsiveness.
+
+---
+
+## 🛠️ Setup & Installation Guide
+
+### Prerequisites
+- **Python**: 3.10+ (tested on Python 3.12)
+- **Flutter SDK**: 3.27+ with Android SDK (API 36 / 35 supported)
+- **ADB**: Android Debug Bridge for physical device and emulator communication
+
+### 1. FastAPI Backend Setup
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create and activate virtual environment
+python -m venv venv
+# On Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start FastAPI server on port 8000
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+The backend API documentation is accessible at `http://localhost:8000/docs`.
+
+### 2. Flutter Mobile Setup
+```bash
+# Navigate to mobile directory
+cd mobile
+
+# Fetch Flutter dependencies
+flutter pub get
+
+# Run static analysis
+flutter analyze
+
+# Run unit and widget tests
+flutter test
+
+# Launch mobile application on connected device / emulator
+flutter run
+```
+
+### 3. Connecting a Physical Android Phone or Emulator
+To allow the mobile app to communicate with your local FastAPI server:
+
+#### Option A: USB Cable Connection (Recommended for Physical Devices)
+1. Connect your phone via USB with **USB Debugging** enabled.
+2. In terminal, run reverse port forwarding:
+   ```powershell
+   adb reverse tcp:8000 tcp:8000
+   ```
+3. In the MedIntel AI app, tap the **Settings** gear, select **USB Cable (Phone)** (`http://127.0.0.1:8000`), and tap **Test & Save Connection**.
+
+#### Option B: Wi-Fi Local Area Network (Same Wi-Fi)
+1. Find your computer's local IP address (e.g., `ipconfig` on Windows -> `192.168.x.x` or `10.x.x.x`).
+2. Ensure both computer and phone are connected to the same Wi-Fi router.
+3. In the MedIntel AI app, tap **Settings**, select or enter `http://<YOUR_PC_IP>:8000`, and tap **Test & Save Connection**.
+
+#### Option C: Android Emulator
+- Select **Android Emulator** (`http://10.0.2.2:8000`), which bridges directly to `localhost:8000` on the host machine.
+
+---
+
+## 🧪 Verified Test Suite & Device Validation
+
+### Automated Test Coverage
+- **Flutter Mobile Analysis**: `flutter analyze` -> **0 issues found** across all Dart files.
+- **Flutter Test Suite**: `flutter test` -> **75 tests passed, 0 failures** (including AuthCubit, HistoryCubit, UploadCubit, VerificationCubit, E2E workflow, and UI widgets).
+- **Backend Test Suite**: `pytest` -> **33 tests passed, 0 failures** (verifying registration, password verification, HMAC authentication, duplicate rejection, and multi-user report isolation).
+
+### Physical & Virtual Device Validation
+- **Physical Android Device (Realme RMX3771)**: Verified APK build, streamed ADB installation, startup into the Sign In screen, responsive touch handling, and backend connectivity via reverse port forwarding.
+- **Android Virtual Device (Emulator API 36)**: Verified end-to-end user registration, login, dashboard rendering, settings navigation, and session sign-out.
+
+---
+
+## 📌 Known Limitations & Ongoing Work
+- **Handwritten Prescription Integration on Mobile**: The backend TrOCR deep learning model requires GPU/CUDA acceleration for sub-second response times; mobile currently routes primarily to digital PDF parsing and printed OCR.
+- **Cloud Database Synchronization**: Current user and report persistence uses local SQLite. Transition to PostgreSQL/MySQL is architected for future multi-region cloud deployment.
+- **Biometric Authentication**: Fingerprint and Face Unlock biometric shortcuts will be integrated in a subsequent release to augment password login.

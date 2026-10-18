@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medintel_mobile/core/errors/api_exception.dart';
 import 'package:medintel_mobile/models/analysis/verified_snapshot.dart';
+import 'package:medintel_mobile/models/auth/user_model.dart';
 import 'package:medintel_mobile/models/common/enums.dart';
 import 'package:medintel_mobile/models/extraction/document_extraction_result.dart';
+import 'package:medintel_mobile/models/history/analysis_history_item.dart';
 import 'package:medintel_mobile/models/genai/genai_explain_request.dart';
 import 'package:medintel_mobile/models/genai/genai_explain_response.dart';
 import 'package:medintel_mobile/models/genai/genai_status_response.dart';
@@ -28,6 +30,14 @@ import 'package:medintel_mobile/state/verification/verification_cubit.dart';
 class FakeApiService implements ApiService {
   bool shouldFail = false;
   ParseAndAnalyzeResponse? parseResponse;
+
+  @override
+  String baseUrl = 'http://127.0.0.1:8000';
+
+  @override
+  void updateBaseUrl(String newUrl) {
+    baseUrl = newUrl;
+  }
 
   @override
   Future<Map<String, dynamic>> getHealth() async {
@@ -174,6 +184,78 @@ class FakeApiService implements ApiService {
       condition: 'kidney_disease',
       status: 'OK',
     );
+  }
+
+  String? _authToken;
+
+  @override
+  String? get currentAuthToken => _authToken;
+
+  @override
+  void setAuthToken(String? token) {
+    _authToken = token;
+  }
+
+  @override
+  Future<UserModel> register({
+    required String name,
+    required String email,
+    required String password,
+    String? languagePreference,
+  }) async {
+    final user = UserModel(
+      id: 1,
+      name: name,
+      email: email,
+      token: 'fake_test_jwt_token',
+      languagePreference: languagePreference ?? 'english',
+    );
+    setAuthToken(user.token);
+    return user;
+  }
+
+  @override
+  Future<UserModel> login({
+    required String email,
+    required String password,
+  }) async {
+    final user = UserModel(
+      id: 1,
+      name: 'Test Patient',
+      email: email,
+      token: 'fake_test_jwt_token',
+    );
+    setAuthToken(user.token);
+    return user;
+  }
+
+  @override
+  Future<UserModel?> getProfile() async {
+    return const UserModel(
+      id: 1,
+      name: 'Test Patient',
+      email: 'patient@example.com',
+      token: 'fake_test_jwt_token',
+    );
+  }
+
+  final List<AnalysisHistoryItem> _fakeUserReports = [];
+
+  @override
+  Future<List<AnalysisHistoryItem>> fetchUserReports() async {
+    return List.unmodifiable(_fakeUserReports);
+  }
+
+  @override
+  Future<AnalysisHistoryItem> saveUserReport(AnalysisHistoryItem report) async {
+    _fakeUserReports.removeWhere((r) => r.id == report.id);
+    _fakeUserReports.insert(0, report);
+    return report;
+  }
+
+  @override
+  Future<void> deleteUserReport(String reportId) async {
+    _fakeUserReports.removeWhere((r) => r.id == reportId);
   }
 }
 

@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "sqlite:///./medintel.db"
 
-    HOST: str = "127.0.0.1"
+    HOST: str = "0.0.0.0"
     PORT: int = 8000
 
     # Document Extraction & OCR (Phase 4)

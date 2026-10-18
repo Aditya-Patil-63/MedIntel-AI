@@ -124,6 +124,26 @@ class VerificationCubit extends Cubit<VerificationState> {
     ));
   }
 
+  /// Confirms an individual measurement as accurate without modifying its values.
+  void confirmSingleMeasurement(String id) {
+    final index = state.measurements.indexWhere((m) => m.id == id);
+    if (index == -1) return;
+
+    final current = state.measurements[index];
+    final updated = current.copyWith(
+      status: VerificationItemStatus.confirmed,
+    );
+
+    final list = List<EditableMeasurement>.from(state.measurements);
+    list[index] = updated;
+
+    emit(state.copyWith(
+      measurements: list,
+      errorMessage: null,
+      statusMessage: 'Confirmed "${current.testName}".',
+    ));
+  }
+
   /// Adds a manually input measurement.
   /// Automatically resets verification state.
   void addMeasurement({

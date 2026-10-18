@@ -4,10 +4,14 @@ import '../../core/theme/app_colors.dart';
 import '../../state/document/document_cubit.dart';
 import '../../state/document/document_state.dart';
 import '../../state/verification/verification_cubit.dart';
-import '../../widgets/disclaimer_banner.dart';
+import '../../widgets/server_settings_dialog.dart';
 import '../verification/verification_screen.dart';
 
-/// Screen managing file selection, client-side validation, and OCR extraction.
+/// Redesigned production-grade document upload and extraction experience.
+///
+/// Features a step progress indicator, intuitive dropzone area, real-time
+/// processing animations, patient-friendly error recovery, and seamless
+/// transition into the clinical verification gate.
 class UploadScreen extends StatelessWidget {
   const UploadScreen({super.key});
 
@@ -18,8 +22,8 @@ class UploadScreen extends StatelessWidget {
         title: const Text('Upload Medical Report'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Reset',
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Reset Upload',
             onPressed: () => context.read<DocumentCubit>().reset(),
           ),
         ],
@@ -30,41 +34,44 @@ class UploadScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Mandatory Educational Disclaimer Banner
-              const DisclaimerBanner(),
+              // 1. 3-Step Guided Progress Tracker
+              _buildStepTracker(currentStep: 1),
               const SizedBox(height: 16),
 
-              // 2. Format & Size Constraints Card
-              Card(
-                elevation: 0,
-                color: const Color(0xFFF1F5F9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: AppColors.divider),
+              // 3. Supported Formats Badge
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.divider),
                 ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 20, color: AppColors.textSecondary),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Supported: PDF, PNG, JPG, JPEG • Maximum file size: 10 MB',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
-                          ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 16,
+                      color: AppColors.primary,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Supported: PDF, PNG, JPG, JPEG • Maximum file size: 10 MB',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
 
-              // 3. Dynamic State View
+              // 4. Dynamic State Views (Picker / Processing / Extracted / Error)
               BlocConsumer<DocumentCubit, DocumentState>(
                 listener: (context, state) {
                   if (state is DocumentError) {
@@ -99,6 +106,7 @@ class UploadScreen extends StatelessWidget {
                   return _buildPickerState(context);
                 },
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -106,83 +114,261 @@ class UploadScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPickerState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.upload_file,
-                size: 64,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Select Medical Report',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Choose a lab report or prescription to extract text',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.folder_open),
-              label: const Text('Browse Files'),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(200, 48),
-              ),
-              onPressed: () =>
-                  context.read<DocumentCubit>().pickAndProcessDocument(),
-            ),
-          ],
-        ),
+  Widget _buildStepTracker({required int currentStep}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          _buildStepNode(
+            step: 1,
+            label: 'Upload',
+            isActive: currentStep == 1,
+            isCompleted: currentStep > 1,
+          ),
+          _buildStepDivider(isCompleted: currentStep > 1),
+          _buildStepNode(
+            step: 2,
+            label: 'Verify',
+            isActive: currentStep == 2,
+            isCompleted: currentStep > 2,
+          ),
+          _buildStepDivider(isCompleted: currentStep > 2),
+          _buildStepNode(
+            step: 3,
+            label: 'Results',
+            isActive: currentStep == 3,
+            isCompleted: false,
+          ),
+        ],
       ),
     );
   }
 
+  Widget _buildStepNode({
+    required int step,
+    required String label,
+    required bool isActive,
+    required bool isCompleted,
+  }) {
+    Color circleColor = const Color(0xFFF1F5F9);
+    Color textColor = AppColors.textSecondary;
+    Widget child = Text(
+      '$step',
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+        color: AppColors.textSecondary,
+      ),
+    );
+
+    if (isCompleted) {
+      circleColor = AppColors.normalBg;
+      textColor = AppColors.normal;
+      child = const Icon(Icons.check, size: 14, color: AppColors.normal);
+    } else if (isActive) {
+      circleColor = AppColors.primary;
+      textColor = AppColors.primaryDark;
+      child = Text(
+        '$step',
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: circleColor,
+            shape: BoxShape.circle,
+          ),
+          child: child,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+            color: textColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepDivider({required bool isCompleted}) {
+    return Expanded(
+      child: Container(
+        height: 2,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        color: isCompleted ? AppColors.normal : AppColors.divider,
+      ),
+    );
+  }
+
+  Widget _buildPickerState(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.primarySurface,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.upload_file_rounded,
+              size: 56,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Select Medical Report',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Choose a lab report or prescription to extract test values.\nYour file is processed safely on your local server.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 28),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 280),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.folder_open_rounded, size: 20),
+                  label: const Text('Browse Files'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () =>
+                      context.read<DocumentCubit>().pickAndProcessDocument(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              icon: const Icon(Icons.edit_note_rounded, size: 18),
+              label: const Text(
+                "Don't have a report? Enter values manually →",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const VerificationScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Next: You will review & confirm extracted values',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
   Widget _buildProcessingState(DocumentState state) {
     String message = 'Processing document...';
-    if (state is DocumentSelecting) message = 'Selecting file...';
+    if (state is DocumentSelecting) message = 'Selecting document file...';
     if (state is DocumentValidating) message = 'Validating file constraints...';
     if (state is DocumentUploading) {
       message = 'Uploading "${state.filename}" to server...';
     }
     if (state is DocumentExtracting) {
-      message = 'Extracting text with FastAPI OCR pipeline...';
+      message = 'Extracting numerical laboratory measurements...';
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(color: AppColors.primary),
-            const SizedBox(height: 20),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(
+              strokeWidth: 3.5,
+              color: AppColors.primary,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Please wait while the document is securely processed',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Please wait a moment while the clinical parser runs.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
       ),
     );
   }
@@ -194,7 +380,7 @@ class UploadScreen extends StatelessWidget {
     return Card(
       color: AppColors.criticalBg,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.critical),
       ),
       child: Padding(
@@ -207,7 +393,7 @@ class UploadScreen extends StatelessWidget {
                 Icon(Icons.error_outline, color: AppColors.critical),
                 SizedBox(width: 8),
                 Text(
-                  'File Validation Failed',
+                  'Invalid File',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: AppColors.critical,
@@ -219,12 +405,16 @@ class UploadScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               state.message,
-              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+                height: 1.4,
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             ElevatedButton.icon(
               icon: const Icon(Icons.refresh),
-              label: const Text('Select Another File'),
+              label: const Text('Choose Another File'),
               onPressed: () =>
                   context.read<DocumentCubit>().pickAndProcessDocument(),
             ),
@@ -234,12 +424,168 @@ class UploadScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildExtractedState(
+      BuildContext context, DocumentExtracted state) {
+    final result = state.result;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.normalBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.normalBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.normal,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          result.filename,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${result.totalPages} pages processed • ${result.sourceType.value}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (result.warnings.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.highBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.highBorder),
+                  ),
+                  child: Text(
+                    result.warnings.join("\n"),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.high,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Text preview card
+        const Text(
+          'Extracted Text Preview',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          height: 140,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: SingleChildScrollView(
+            child: Text(
+              result.fullText.isNotEmpty
+                  ? result.fullText
+                  : 'No text extracted from this document.',
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12,
+                height: 1.4,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Action Buttons
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.arrow_forward_rounded),
+            label: const Text(
+              'Proceed to Verification Gate',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            onPressed: () {
+              context
+                  .read<VerificationCubit>()
+                  .parseExtractedText(result.fullText);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const VerificationScreen(),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () =>
+                context.read<DocumentCubit>().pickAndProcessDocument(),
+            child: const Text('Upload a Different Report'),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildErrorState(BuildContext context, DocumentError state) {
     return Card(
       color: AppColors.criticalBg,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.critical),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.criticalBorder),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -262,19 +608,29 @@ class UploadScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              state.message,
-              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+              _formatUserFriendlyError(state.message),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 20),
-            Row(
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
               children: [
                 ElevatedButton.icon(
-                  icon: const Icon(Icons.replay),
+                  icon: const Icon(Icons.replay_rounded),
                   label: const Text('Retry Extraction'),
                   onPressed: () =>
                       context.read<DocumentCubit>().retryLastExtraction(),
                 ),
-                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.settings_ethernet),
+                  label: const Text('Configure Connection'),
+                  onPressed: () => ServerSettingsDialog.show(context),
+                ),
                 OutlinedButton(
                   onPressed: () =>
                       context.read<DocumentCubit>().pickAndProcessDocument(),
@@ -288,118 +644,17 @@ class UploadScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildExtractedState(BuildContext context, DocumentExtracted state) {
-    final result = state.result;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: AppColors.normal, size: 24),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        result.filename,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 24),
-                _buildMetaRow('Source Type', result.sourceType.value),
-                _buildMetaRow('Extractor Used', result.extractor),
-                _buildMetaRow('Pages Processed', result.totalPages.toString()),
-                _buildMetaRow(
-                  'OCR Confidence',
-                  '${(result.confidence * 100).toStringAsFixed(1)}%',
-                ),
-                if (result.warnings.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Warnings: ${result.warnings.join(", ")}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.high),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Extracted Text Preview',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          height: 160,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.divider),
-          ),
-          child: SingleChildScrollView(
-            child: Text(
-              result.fullText.isNotEmpty
-                  ? result.fullText
-                  : 'No text extracted from this document.',
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.arrow_forward),
-            label: const Text('Proceed to Medical Verification'),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size.fromHeight(50),
-            ),
-            onPressed: () {
-              // Initiate reference parse-and-analyze
-              context
-                  .read<VerificationCubit>()
-                  .parseExtractedText(result.fullText);
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const VerificationScreen(),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMetaRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-        ],
-      ),
-    );
+  String _formatUserFriendlyError(String rawMessage) {
+    if (rawMessage.contains('Unable to connect') ||
+        rawMessage.contains('Connection refused') ||
+        rawMessage.contains('NETWORK_ERROR')) {
+      return 'Unable to reach the MedIntel AI backend server. '
+          'Please ensure the backend is running and that your connection settings are configured on the home screen.';
+    }
+    if (rawMessage.contains('No extractable text') ||
+        rawMessage.contains('empty')) {
+      return "We couldn't read the text in this document. Try uploading a clearer PDF or image.";
+    }
+    return rawMessage;
   }
 }
