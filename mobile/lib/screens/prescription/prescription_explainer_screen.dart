@@ -137,20 +137,6 @@ class _PrescriptionExplainerViewState extends State<_PrescriptionExplainerView>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Prescription Explainer'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Reset',
-            onPressed: () {
-              setState(() {
-                _selectedFilePath = null;
-                _selectedFileName = null;
-                _textController.clear();
-              });
-              context.read<PrescriptionCubit>().reset();
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

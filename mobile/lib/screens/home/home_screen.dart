@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_colors.dart';
-import '../../services/api_service.dart';
 import '../../state/auth/auth_cubit.dart';
 import '../../state/history/history_cubit.dart';
 import '../../state/history/history_state.dart';
@@ -25,35 +24,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isBackendOk = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkServices();
-  }
-
-  Future<void> _checkServices() async {
-    if (!mounted) return;
-    final apiService = context.read<ApiService>();
-
-    try {
-      final health = await apiService.getHealth();
-      final statusVal = health['status']?.toString().toLowerCase();
-      if (mounted) {
-        setState(() {
-          _isBackendOk = statusVal == 'healthy' || statusVal == 'ok';
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isBackendOk = false;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -83,53 +53,33 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Tooltip(
-              message: _isBackendOk ? 'Backend Connected' : 'Connecting...',
-              child: Container(
-                width: 9,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: _isBackendOk ? AppColors.normal : const Color(0xFFF59E0B),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _checkServices,
-          color: AppColors.primary,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 0. User Welcome Header
-                _buildUserWelcome(context),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 0. User Welcome Header
+              _buildUserWelcome(context),
 
-                // 1. Clinical Quick Actions (2x2 Grid)
-                _buildQuickActionsGrid(context),
-                const SizedBox(height: 18),
+              // 1. Clinical Quick Actions (2x2 Grid)
+              _buildQuickActionsGrid(context),
+              const SizedBox(height: 18),
 
-                // 2. Primary Hero Action Card: "Analyze a Medical Report"
-                _buildHeroActionCard(context),
-                const SizedBox(height: 18),
+              // 2. Primary Hero Action Card: "Analyze a Medical Report"
+              _buildHeroActionCard(context),
+              const SizedBox(height: 18),
 
-                // 3. How It Works - 3-Step Guided Workflow
-                _buildWorkflowGuide(),
-                const SizedBox(height: 18),
+              // 3. How It Works - 3-Step Guided Workflow
+              _buildWorkflowGuide(),
+              const SizedBox(height: 18),
 
-                // 4. Recent Reports Preview
-                _buildRecentReportsSection(context),
-                const SizedBox(height: 16),
-              ],
-            ),
+              // 4. Recent Reports Preview
+              _buildRecentReportsSection(context),
+              const SizedBox(height: 16),
+            ],
           ),
         ),
       ),
@@ -141,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
           } else if (index == 2) {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()));
           } else if (index == 3) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())).then((_) => _checkServices());
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
           }
         },
         destinations: const [
@@ -843,7 +793,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => destination),
-            ).then((_) => _checkServices());
+            );
           },
           borderRadius: BorderRadius.circular(14),
           child: Padding(

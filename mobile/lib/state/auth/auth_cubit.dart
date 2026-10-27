@@ -125,6 +125,15 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  /// Update current user's language preference.
+  void updateLanguage(String newLanguage) {
+    if (state is Authenticated) {
+      final user = (state as Authenticated).user;
+      final updatedUser = user.copyWith(languagePreference: newLanguage);
+      emit(Authenticated(updatedUser));
+    }
+  }
+
   /// Sign out the current user, clearing session tokens and history scoping.
   void logout() {
     apiService.setAuthToken(null);

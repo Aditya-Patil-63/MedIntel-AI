@@ -74,18 +74,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analysis & Risk Assessment'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Re-analyze',
-            onPressed: () {
-              final snap = context.read<AnalysisCubit>().state.snapshot;
-              if (snap != null) {
-                context.read<AnalysisCubit>().runFullAnalysis(snap);
-              }
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         child: BlocBuilder<AnalysisCubit, AnalysisState>(

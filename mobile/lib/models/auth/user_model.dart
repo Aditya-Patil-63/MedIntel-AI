@@ -44,6 +44,22 @@ class UserModel extends Equatable {
         'language_preference': languagePreference,
       };
 
+  UserModel copyWith({
+    int? id,
+    String? name,
+    String? email,
+    String? token,
+    String? languagePreference,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      token: token ?? this.token,
+      languagePreference: languagePreference ?? this.languagePreference,
+    );
+  }
+
   @override
   List<Object?> get props => [id, name, email, token, languagePreference];
 }

@@ -22,13 +22,6 @@ class UploadScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Upload Medical Report'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Reset Upload',
-            onPressed: () => context.read<DocumentCubit>().reset(),
-          ),
-        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -464,7 +457,7 @@ class UploadScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.upload_file_outlined),
               label: const Text('Choose Another File'),
               onPressed: () =>
                   context.read<DocumentCubit>().pickAndProcessDocument(),
@@ -697,7 +690,7 @@ class UploadScreen extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: TextButton.icon(
-            icon: const Icon(Icons.refresh_rounded, size: 18),
+            icon: const Icon(Icons.upload_file_outlined, size: 18),
             label: const Text('Upload a Different Report'),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.textSecondary,
@@ -750,11 +743,10 @@ class UploadScreen extends StatelessWidget {
               spacing: 10,
               runSpacing: 10,
               children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.replay_rounded),
-                  label: const Text('Retry Extraction'),
+                ElevatedButton(
                   onPressed: () =>
                       context.read<DocumentCubit>().retryLastExtraction(),
+                  child: const Text('Retry Extraction'),
                 ),
                 OutlinedButton(
                   onPressed: () =>
@@ -774,7 +766,7 @@ class UploadScreen extends StatelessWidget {
         rawMessage.contains('Connection refused') ||
         rawMessage.contains('NETWORK_ERROR')) {
       return 'Unable to reach the MedIntel AI backend server. '
-          'Please ensure the backend is running and that your connection settings are configured on the home screen.';
+          'Please ensure the backend server is running. You can verify network settings in Settings.';
     }
     if (rawMessage.contains('No extractable text') ||
         rawMessage.contains('empty')) {

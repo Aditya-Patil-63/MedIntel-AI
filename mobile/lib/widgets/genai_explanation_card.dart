@@ -186,11 +186,10 @@ class GenAIExplanationCard extends StatelessWidget {
                   const TextStyle(fontSize: 12, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 12),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Retry AI Explanation',
-                  style: TextStyle(fontSize: 12)),
+            ElevatedButton(
               onPressed: onRetry,
+              child: const Text('Retry AI Explanation',
+                  style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
