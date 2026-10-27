@@ -40,4 +40,9 @@ class ApiConstants {
   static const String authLogin = '/api/v1/auth/login';
   static const String authMe = '/api/v1/auth/me';
   static const String reports = '/api/v1/reports';
+
+  // Prescriptions (Objective 2)
+  static const String prescriptionExplain = '/api/v1/prescriptions/explain';
+  static const String prescriptionExtractAndExplain =
+      '/api/v1/prescriptions/extract-and-explain';
 }

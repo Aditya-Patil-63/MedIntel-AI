@@ -8,6 +8,7 @@ import 'package:medintel_mobile/models/history/analysis_history_item.dart';
 import 'package:medintel_mobile/models/genai/genai_explain_request.dart';
 import 'package:medintel_mobile/models/genai/genai_explain_response.dart';
 import 'package:medintel_mobile/models/genai/genai_status_response.dart';
+import 'package:medintel_mobile/models/prescription/prescription_model.dart';
 import 'package:medintel_mobile/models/ml_risk/diabetes_risk_request.dart';
 import 'package:medintel_mobile/models/ml_risk/heart_disease_risk_request.dart';
 import 'package:medintel_mobile/models/ml_risk/kidney_disease_risk_request.dart';
@@ -256,6 +257,47 @@ class FakeApiService implements ApiService {
   @override
   Future<void> deleteUserReport(String reportId) async {
     _fakeUserReports.removeWhere((r) => r.id == reportId);
+  }
+
+  @override
+  Future<PrescriptionExplainResponse> explainPrescription(
+    PrescriptionExplainRequest request,
+  ) async {
+    return const PrescriptionExplainResponse(
+      medicines: [
+        PrescribedMedicineItem(
+          name: 'Metformin',
+          purpose: 'Controls blood sugar',
+          dosage: '500 mg',
+          whenToTake: 'With or after meals',
+        ),
+      ],
+      generalGuidance: 'Take medicines on schedule',
+      questionsForDoctor: ['When to stop?'],
+      language: 'english',
+      disclaimer: 'Educational disclaimer',
+    );
+  }
+
+  @override
+  Future<PrescriptionExplainResponse> uploadAndExplainPrescription(
+    String filePath, {
+    String language = 'english',
+  }) async {
+    return const PrescriptionExplainResponse(
+      medicines: [
+        PrescribedMedicineItem(
+          name: 'Amoxicillin',
+          purpose: 'Treats bacterial infection',
+          dosage: '500 mg',
+          whenToTake: 'Twice daily after food',
+        ),
+      ],
+      generalGuidance: 'Finish full course',
+      questionsForDoctor: ['Any allergic reaction?'],
+      language: 'english',
+      disclaimer: 'Educational disclaimer',
+    );
   }
 }
 

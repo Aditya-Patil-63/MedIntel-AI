@@ -5,6 +5,7 @@ import '../../state/document/document_cubit.dart';
 import '../../state/document/document_state.dart';
 import '../../state/verification/verification_cubit.dart';
 import '../../widgets/server_settings_dialog.dart';
+import '../prescription/prescription_explainer_screen.dart';
 import '../verification/verification_screen.dart';
 
 /// Redesigned production-grade document upload and extraction experience.
@@ -36,7 +37,56 @@ class UploadScreen extends StatelessWidget {
             children: [
               // 1. 3-Step Guided Progress Tracker
               _buildStepTracker(currentStep: 1),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
+              // Objective 2 Prescription Switcher
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrescriptionExplainerScreen(),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDFA),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF99F6E4)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.medication_liquid_rounded, size: 20, color: AppColors.primary),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Have a Doctor\'s Prescription Instead?',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark,
+                              ),
+                            ),
+                            Text(
+                              'Tap here to decipher handwriting & view medicine timings (Objective 2)',
+                              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.primary),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
 
               // 3. Supported Formats Badge
               Container(

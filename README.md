@@ -1,14 +1,24 @@
 # MedIntel AI
 
-**Intelligent Medical Report Analyzer Using Machine Learning and Generative AI**
+**Intelligent Medical Report & Prescription Analyzer Using Machine Learning and Generative AI**
 
 > Final-Year Project
 
 ---
 
+## 🎯 Three Main Project Objectives
+
+MedIntel AI aims to bridge the gap between doctors and patients through three main objectives:
+
+1. **Simplifying Medical Reports**: Converting complex medical reports into clear, easy-to-understand health insights in the patient's preferred language.
+2. **Understanding Prescriptions**: Helping patients understand what the doctor has prescribed, including the medicines, their purpose, and how they should be taken.
+3. **Providing Actionable Health Insights**: Helping patients understand their health conditions and identify potential health risks so they can make more informed health decisions, while still consulting their doctor for professional medical advice.
+
+---
+
 ## Overview
 
-MedIntel AI is an intelligent mobile application that analyzes medical reports and prescriptions — including handwritten ones — extracts test values, classifies them against medical reference ranges, predicts disease risk using machine learning, and provides simple multilingual explanations powered by Generative AI.
+MedIntel AI is an intelligent mobile application that analyzes medical reports and prescriptions — including handwritten ones — extracts test values, classifies them against medical reference ranges, predicts disease risk using machine learning, breaks down prescribed medicines with their purpose and schedule, and provides simple multilingual explanations powered by Generative AI.
 
 ---
 
@@ -32,6 +42,7 @@ MedIntel AI is an intelligent mobile application that analyzes medical reports a
 | 14 | Secure user authentication & password hashing (PBKDF2-HMAC-SHA256) |
 | 15 | Strict user-partitioned report isolation (private SQLite data per user) |
 | 16 | Modern healthcare mobile design system & connection settings |
+| 17 | Prescription & Medicine Explainer (Objective 2: 4-column schedule table with doctor non-override safety flags) |
 
 ---
 
@@ -315,8 +326,21 @@ To allow the mobile app to communicate with your local FastAPI server:
 
 ### Automated Test Coverage
 - **Flutter Mobile Analysis**: `flutter analyze` -> **0 issues found** across all Dart files.
-- **Flutter Test Suite**: `flutter test` -> **75 tests passed, 0 failures** (including AuthCubit, HistoryCubit, UploadCubit, VerificationCubit, E2E workflow, and UI widgets).
-- **Backend Test Suite**: `pytest` -> **33 tests passed, 0 failures** (verifying registration, password verification, HMAC authentication, duplicate rejection, and multi-user report isolation).
+- **Flutter Test Suite**: `flutter test` -> **82 tests passed, 0 failures** (including AuthCubit, HistoryCubit, PrescriptionCubit, UploadCubit, VerificationCubit, E2E workflow, and PrescriptionExplainerScreen widgets).
+- **Backend Test Suite**: `pytest` -> **37 tests passed, 0 failures** (verifying registration, password verification, HMAC authentication, duplicate rejection, multi-user report isolation, and multilingual prescription explainer).
+
+### Objective 2 Implementation: Prescription & Medicine Explainer
+- **Endpoints**:
+  - `POST /api/v1/prescriptions/explain` — Translates raw prescription text or medication lists into patient-friendly explanations in English, Hindi, Marathi, and Gujarati.
+  - `POST /api/v1/prescriptions/extract-and-explain` — Ingests prescription image/document, extracts text via OCR/TrOCR, and explains medicines.
+- **Structured Table Format**:
+  - `Medicine Name`: The identified medicine name with generic chemical molecule.
+  - `Purpose`: A simple explanation of what the medicine is used for.
+  - `Dosage`: The prescribed dose (e.g. 500 mg Tablet, 2 ml, 1 capsule).
+  - `When to Take`: Prescribed timing (Before meals, after meals, or at bedtime).
+- **Medical Safety Boundaries**:
+  - If handwriting recognition cannot confidently identify a medicine or dosage, the system flags it with `needs_confirmation=True` and a warning badge prompting pharmacist/doctor confirmation rather than guessing.
+  - Gemini-generated information is strictly educational and must NEVER override the doctor's prescribed instructions.
 
 ### Physical & Virtual Device Validation
 - **Physical Android Device (Realme RMX3771)**: Verified APK build, streamed ADB installation, startup into the Sign In screen, responsive touch handling, and backend connectivity via reverse port forwarding.
@@ -325,6 +349,6 @@ To allow the mobile app to communicate with your local FastAPI server:
 ---
 
 ## 📌 Known Limitations & Ongoing Work
-- **Handwritten Prescription Integration on Mobile**: The backend TrOCR deep learning model requires GPU/CUDA acceleration for sub-second response times; mobile currently routes primarily to digital PDF parsing and printed OCR.
+- **GPU Acceleration for High-Throughput Handwriting**: TrOCR model inference on low-power devices benefits from cloud or local GPU acceleration for instant transcription.
 - **Cloud Database Synchronization**: Current user and report persistence uses local SQLite. Transition to PostgreSQL/MySQL is architected for future multi-region cloud deployment.
 - **Biometric Authentication**: Fingerprint and Face Unlock biometric shortcuts will be integrated in a subsequent release to augment password login.

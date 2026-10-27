@@ -13,6 +13,7 @@ from app.api.extraction import router as extraction_router
 from app.api.genai import router as genai_router
 from app.api.health import router as health_router
 from app.api.ml_risk import router as ml_risk_router
+from app.api.prescriptions import router as prescriptions_router
 from app.api.reference import router as reference_router
 from app.api.reports import router as reports_router
 from app.core.config import settings
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
     application.include_router(reference_router)
     application.include_router(ml_risk_router)
     application.include_router(genai_router)
+    application.include_router(prescriptions_router)
 
     return application
 

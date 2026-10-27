@@ -16,6 +16,7 @@ import '../models/ml_risk/ml_status_response.dart';
 import '../models/ml_risk/risk_prediction_response.dart';
 import '../models/reference/batch_analysis.dart';
 import '../models/reference/parse_and_analyze.dart';
+import '../models/prescription/prescription_model.dart';
 
 /// Abstract API service contract for MedIntel AI FastAPI backend.
 abstract class ApiService {
@@ -101,6 +102,17 @@ abstract class ApiService {
 
   /// 20. Update active backend base URL
   void updateBaseUrl(String newUrl);
+
+  /// 21. Explain prescription text or medications (Objective 2)
+  Future<PrescriptionExplainResponse> explainPrescription(
+    PrescriptionExplainRequest request,
+  );
+
+  /// 22. Upload prescription image or PDF and explain (Objective 2)
+  Future<PrescriptionExplainResponse> uploadAndExplainPrescription(
+    String filePath, {
+    String language = 'english',
+  });
 }
 
 /// Concrete Dio implementation of ApiService.
@@ -439,6 +451,52 @@ class ApiServiceImpl implements ApiService {
   Future<void> deleteUserReport(String reportId) async {
     try {
       await _dio.delete('${ApiConstants.reports}/$reportId');
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<PrescriptionExplainResponse> explainPrescription(
+    PrescriptionExplainRequest request,
+  ) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.prescriptionExplain,
+        data: request.toJson(),
+        options: Options(contentType: 'application/json'),
+      );
+      return PrescriptionExplainResponse.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<PrescriptionExplainResponse> uploadAndExplainPrescription(
+    String filePath, {
+    String language = 'english',
+  }) async {
+    try {
+      final file = File(filePath);
+      final filename = file.uri.pathSegments.isNotEmpty
+          ? file.uri.pathSegments.last
+          : 'prescription.jpg';
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath, filename: filename),
+        'language': language,
+      });
+
+      final response = await _dio.post(
+        ApiConstants.prescriptionExtractAndExplain,
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
+      );
+      return PrescriptionExplainResponse.fromJson(
+        response.data as Map<String, dynamic>,
+      );
     } on DioException catch (e) {
       throw _unwrapException(e);
     }

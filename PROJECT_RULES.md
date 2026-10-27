@@ -1,8 +1,18 @@
 # MedIntel AI — Project Rules & Architecture
 
-> Intelligent Medical Report Analyzer Using Machine Learning and Generative AI
+> Intelligent Medical Report & Prescription Analyzer Using Machine Learning and Generative AI
 >
 > Final-Year Project
+
+---
+
+## 🎯 Three Main Project Objectives
+
+MedIntel AI aims to bridge the gap between doctors and patients through three main objectives:
+
+1. **Simplifying Medical Reports**: Converting complex medical reports into clear, easy-to-understand health insights in the patient's preferred language.
+2. **Understanding Prescriptions**: Helping patients understand what the doctor has prescribed, including the medicines, their purpose, and how they should be taken.
+3. **Providing Actionable Health Insights**: Helping patients understand their health conditions and identify potential health risks so they can make more informed health decisions, while still consulting their doctor for professional medical advice.
 
 ---
 
