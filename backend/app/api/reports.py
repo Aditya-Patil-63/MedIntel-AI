@@ -129,6 +129,83 @@ def save_user_report(
     return payload
 
 
+@router.get(
+    "/trends",
+    response_model=Dict[str, Any],
+    summary="Get longitudinal health metrics and trends across user reports",
+)
+def get_user_health_trends(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Aggregate analyte measurements across historical reports to track changes over time."""
+    reports = (
+        db.query(Report)
+        .filter(Report.user_id == current_user.id)
+        .order_by(Report.created_at.asc())
+        .all()
+    )
+
+    trends_map: Dict[str, List[Dict[str, Any]]] = {}
+
+    for rep in reports:
+        report_date = rep.created_at.strftime("%Y-%m-%d") if rep.created_at else "Unknown"
+        report_id_str = f"rep_{rep.id}"
+
+        # 1. Inspect raw_extracted_text JSON
+        if rep.raw_extracted_text:
+            try:
+                data = json.loads(rep.raw_extracted_text)
+                if data.get("id"):
+                    report_id_str = data["id"]
+                ref_results = data.get("reference_results", [])
+                for res in ref_results:
+                    if isinstance(res, dict) and "test_name" in res:
+                        t_name = str(res.get("canonical_name") or res.get("test_name")).strip()
+                        val = res.get("numeric_value") or res.get("value")
+                        if val is not None:
+                            try:
+                                num_val = float(val)
+                                if t_name not in trends_map:
+                                    trends_map[t_name] = []
+                                trends_map[t_name].append({
+                                    "report_id": report_id_str,
+                                    "date": report_date,
+                                    "value": num_val,
+                                    "unit": res.get("unit") or res.get("normalized_unit") or "",
+                                    "classification": str(res.get("classification") or "NORMAL").upper(),
+                                })
+                            except (ValueError, TypeError):
+                                pass
+            except Exception:
+                pass
+
+        # 2. Also inspect DB test_results if trends_map is empty for this report
+        test_records = db.query(TestResult).filter(TestResult.report_id == rep.id).all()
+        for tr in test_records:
+            t_name = tr.canonical_name or tr.test_name
+            if tr.test_value is not None:
+                # Avoid duplicate insertion if already in trends_map for this report
+                existing = trends_map.get(t_name, [])
+                if not any(item["report_id"] == report_id_str for item in existing):
+                    if t_name not in trends_map:
+                        trends_map[t_name] = []
+                    trends_map[t_name].append({
+                        "report_id": report_id_str,
+                        "date": report_date,
+                        "value": float(tr.test_value),
+                        "unit": tr.unit or "",
+                        "classification": (tr.classification or "NORMAL").upper(),
+                    })
+
+    return {
+        "total_reports": len(reports),
+        "tracked_metrics_count": len(trends_map),
+        "trends": trends_map,
+        "disclaimer": "This is not a medical diagnosis. Please consult a qualified healthcare professional.",
+    }
+
+
 @router.delete(
     "/{report_id}",
     summary="Delete a medical report belonging to the current user",

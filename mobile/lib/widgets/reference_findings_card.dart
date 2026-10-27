@@ -260,6 +260,11 @@ class ReferenceFindingsCard extends StatelessWidget {
           fg = AppColors.critical;
           icon = Icons.warning_amber_rounded;
           break;
+        case AnalyteClassification.requiresReview:
+          bg = const Color(0xFFF1F5F9);
+          fg = const Color(0xFF475569);
+          icon = Icons.help_outline_rounded;
+          break;
       }
 
       return Container(

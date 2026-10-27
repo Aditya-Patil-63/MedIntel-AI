@@ -7,6 +7,7 @@ import '../../models/ml_risk/risk_prediction_response.dart';
 import '../../state/history/history_cubit.dart';
 import '../../state/history/history_state.dart';
 import '../../widgets/disclaimer_banner.dart';
+import 'biomarker_trends_screen.dart';
 import 'history_detail_screen.dart';
 
 /// Screen displaying locally saved completed analysis history records.
@@ -79,13 +80,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
         actions: [
           BlocBuilder<HistoryCubit, HistoryState>(
             builder: (context, state) {
-              final hasRecords = state is HistoryLoaded && state.records.isNotEmpty;
-              if (!hasRecords) return const SizedBox.shrink();
+              final records =
+                  state is HistoryLoaded ? state.records : <AnalysisHistoryItem>[];
+              if (records.isEmpty) return const SizedBox.shrink();
 
-              return IconButton(
-                icon: const Icon(Icons.delete_sweep_outlined),
-                tooltip: 'Clear History',
-                onPressed: () => _confirmClearHistory(context),
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.show_chart_rounded),
+                    tooltip: 'Track Metrics & Trends',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              BiomarkerTrendsScreen(records: records),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_sweep_outlined),
+                    tooltip: 'Clear History',
+                    onPressed: () => _confirmClearHistory(context),
+                  ),
+                ],
               );
             },
           ),
@@ -105,7 +125,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   // 2. Session Storage Notice
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: AppColors.cardSurface,
                       borderRadius: BorderRadius.circular(12),
@@ -116,10 +137,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryLight.withValues(alpha: 0.12),
+                            color: AppColors.primaryLight
+                                .withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.lock_clock_outlined, size: 14, color: AppColors.primary),
+                          child: const Icon(Icons.lock_clock_outlined,
+                              size: 14, color: AppColors.primary),
                         ),
                         const SizedBox(width: 10),
                         const Expanded(
@@ -135,6 +158,75 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                       ],
                     ),
+                  ),
+
+                  // 3. Health Tracking & Trends Shortcut Card (Objective 3, Req 7)
+                  BlocBuilder<HistoryCubit, HistoryState>(
+                    builder: (context, state) {
+                      final records = state is HistoryLoaded
+                          ? state.records
+                          : <AnalysisHistoryItem>[];
+                      if (records.isEmpty) return const SizedBox.shrink();
+
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    BiomarkerTrendsScreen(records: records),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primarySurface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: AppColors.primaryContainer),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.show_chart_rounded,
+                                    color: AppColors.primary, size: 22),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Track Health Metrics & Compare Reports',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primaryDark,
+                                        ),
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        'View longitudinal biomarker trends & side-by-side differences',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(Icons.arrow_forward_ios_rounded,
+                                    size: 14, color: AppColors.primary),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

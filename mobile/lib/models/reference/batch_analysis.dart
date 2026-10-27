@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'analysis_result.dart';
 import 'measurement_input.dart';
 import 'patient_context.dart';
+import 'patient_details.dart';
 
 /// Request payload for POST /api/v1/reference/analyze.
 class BatchAnalysisRequest extends Equatable {
@@ -35,6 +36,7 @@ class BatchAnalysisResponse extends Equatable {
   final int totalSubmitted;
   final int totalClassified;
   final int? reportId;
+  final PatientDetails? patientDetails;
   final List<AnalysisResult> results;
   final String disclaimer;
 
@@ -43,6 +45,7 @@ class BatchAnalysisResponse extends Equatable {
     required this.totalSubmitted,
     required this.totalClassified,
     this.reportId,
+    this.patientDetails,
     required this.results,
     this.disclaimer =
         'This is not a medical diagnosis. Please consult a qualified healthcare professional.',
@@ -54,6 +57,10 @@ class BatchAnalysisResponse extends Equatable {
       totalSubmitted: (json['total_submitted'] as num?)?.toInt() ?? 0,
       totalClassified: (json['total_classified'] as num?)?.toInt() ?? 0,
       reportId: (json['report_id'] as num?)?.toInt(),
+      patientDetails: json['patient_details'] != null
+          ? PatientDetails.fromJson(
+              json['patient_details'] as Map<String, dynamic>)
+          : null,
       results: (json['results'] as List<dynamic>?)
               ?.map((e) => AnalysisResult.fromJson(e as Map<String, dynamic>))
               .toList() ??

@@ -39,16 +39,18 @@ enum AnalyteClassification {
   low('LOW'),
   normal('NORMAL'),
   high('HIGH'),
-  critical('CRITICAL');
+  critical('CRITICAL'),
+  requiresReview('REQUIRES REVIEW');
 
   final String value;
   const AnalyteClassification(this.value);
 
   static AnalyteClassification? fromString(String? val) {
     if (val == null) return null;
+    final upper = val.toUpperCase().replaceAll('_', ' ').trim();
     return AnalyteClassification.values.firstWhere(
-      (e) => e.value == val.toUpperCase(),
-      orElse: () => AnalyteClassification.normal,
+      (e) => e.value == upper,
+      orElse: () => upper.contains('REVIEW') ? AnalyteClassification.requiresReview : AnalyteClassification.normal,
     );
   }
 }

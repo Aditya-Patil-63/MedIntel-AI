@@ -123,6 +123,16 @@ class ReferenceRangeSummarySchema(BaseModel):
     verification_status: str = "VERIFIED"
 
 
+class PatientDetailsSchema(BaseModel):
+    """Extracted patient demographic and report administrative details."""
+    name: str = Field(default="Not Available", description="Patient name or 'Not Available'")
+    age: Optional[float] = Field(default=None, description="Patient age in years")
+    age_display: str = Field(default="Not Available", description="Display age or 'Not Available'")
+    gender: str = Field(default="Not Available", description="Gender / biological sex or 'Not Available'")
+    date: str = Field(default="Not Available", description="Report date or 'Not Available'")
+    lab_name: str = Field(default="Not Available", description="Laboratory / diagnostic center or 'Not Available'")
+
+
 class AnalysisResultSchema(BaseModel):
     """Structured analysis outcome for an individual measurement."""
     original_test_name: str
@@ -141,6 +151,18 @@ class AnalysisResultSchema(BaseModel):
     )
     reference_range: Optional[ReferenceRangeSummarySchema] = None
     reference_source: Optional[str] = None
+    alert_message: Optional[str] = Field(
+        default=None,
+        description="Patient-friendly alert message explaining abnormal or normal findings",
+    )
+    possible_health_implications: Optional[str] = Field(
+        default=None,
+        description="Educational discussion of potential health implications",
+    )
+    precautions_and_next_steps: Optional[str] = Field(
+        default=None,
+        description="Guidance on precautions and consulting healthcare professionals",
+    )
     is_user_verified: bool = False
     persisted_test_result_id: Optional[int] = None
     warnings: List[str] = Field(default_factory=list)
@@ -156,6 +178,7 @@ class BatchAnalysisResponse(BaseModel):
     total_submitted: int
     total_classified: int
     report_id: Optional[int] = None
+    patient_details: Optional[PatientDetailsSchema] = None
     results: List[AnalysisResultSchema]
     disclaimer: str = (
         "This is not a medical diagnosis. Please consult a qualified healthcare professional."
@@ -182,7 +205,9 @@ class ParseAndAnalyzeResponse(BaseModel):
     total_lines_parsed: int
     total_measurements_analyzed: int
     report_id: Optional[int] = None
+    patient_details: Optional[PatientDetailsSchema] = None
     items: List[ParsedAndAnalyzedItemSchema]
     disclaimer: str = (
         "This is not a medical diagnosis. Please consult a qualified healthcare professional."
     )
+

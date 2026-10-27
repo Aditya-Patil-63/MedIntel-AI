@@ -1,7 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../models/analysis/verified_snapshot.dart';
 import '../../models/reference/editable_measurement.dart';
 import '../../models/reference/parse_and_analyze.dart';
 import '../../models/reference/patient_context.dart';
+import '../../models/reference/patient_details.dart';
 import '../../services/api_service.dart';
 import 'verification_state.dart';
 
@@ -75,14 +77,29 @@ class VerificationCubit extends Cubit<VerificationState> {
         }
       }
 
+      PatientContext resolvedContext = effectiveContext;
+      if (response.patientDetails != null) {
+        final pt = response.patientDetails!;
+        if (resolvedContext.age == null && pt.age != null) {
+          resolvedContext = PatientContext(
+            age: pt.age,
+            sex: resolvedContext.sex ??
+                (pt.gender.toLowerCase() == 'male'
+                    ? 'M'
+                    : (pt.gender.toLowerCase() == 'female' ? 'F' : null)),
+          );
+        }
+      }
+
       emit(state.copyWith(
         measurements: parsedList,
-        patientContext: effectiveContext,
+        patientContext: resolvedContext,
+        patientDetails: response.patientDetails ?? const PatientDetails(),
         isParsing: false,
         isVerified: false,
         statusMessage: parsedList.isEmpty
             ? 'No lab tests were automatically recognized. You can add measurements manually.'
-            : 'Parsed ${parsedList.length} measurements. Please verify all values below.',
+            : 'Parsed ${parsedList.length} measurements. Ready for automated analysis or review.',
         errorMessage: null,
       ));
     } catch (e) {
@@ -245,6 +262,23 @@ class VerificationCubit extends Cubit<VerificationState> {
       statusMessage: 'All ${confirmedList.length} measurements confirmed and verified.',
     ));
     return true;
+  }
+
+  /// Builds a VerifiedSnapshot from current verification state.
+  /// When autoConfirm is true, automatically approves all recognized measurements
+  /// enabling the fully automated zero-manual-entry pipeline.
+  VerifiedSnapshot createSnapshot({bool autoConfirm = false}) {
+    final list = autoConfirm
+        ? state.measurements
+            .map((m) => m.copyWith(status: VerificationItemStatus.confirmed))
+            .toList()
+        : state.measurements;
+    return VerifiedSnapshot(
+      measurements: list,
+      patientContext: state.patientContext,
+      patientDetails: state.patientDetails,
+      isVerified: autoConfirm || state.isVerified,
+    );
   }
 
   void reset() => emit(const VerificationState());

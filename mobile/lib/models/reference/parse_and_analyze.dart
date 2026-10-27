@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'analysis_result.dart';
 import 'patient_context.dart';
+import 'patient_details.dart';
 
 /// Request payload for POST /api/v1/reference/parse-and-analyze.
 class ParseAndAnalyzeRequest extends Equatable {
@@ -105,6 +106,7 @@ class ParseAndAnalyzeResponse extends Equatable {
   final int totalLinesParsed;
   final int totalMeasurementsAnalyzed;
   final int? reportId;
+  final PatientDetails? patientDetails;
   final List<ParsedAndAnalyzedItem> items;
   final String disclaimer;
 
@@ -113,6 +115,7 @@ class ParseAndAnalyzeResponse extends Equatable {
     required this.totalLinesParsed,
     required this.totalMeasurementsAnalyzed,
     this.reportId,
+    this.patientDetails,
     required this.items,
     this.disclaimer =
         'This is not a medical diagnosis. Please consult a qualified healthcare professional.',
@@ -125,6 +128,10 @@ class ParseAndAnalyzeResponse extends Equatable {
       totalMeasurementsAnalyzed:
           (json['total_measurements_analyzed'] as num?)?.toInt() ?? 0,
       reportId: (json['report_id'] as num?)?.toInt(),
+      patientDetails: json['patient_details'] != null
+          ? PatientDetails.fromJson(
+              json['patient_details'] as Map<String, dynamic>)
+          : null,
       items: (json['items'] as List<dynamic>?)
               ?.map(
                   (e) => ParsedAndAnalyzedItem.fromJson(e as Map<String, dynamic>))

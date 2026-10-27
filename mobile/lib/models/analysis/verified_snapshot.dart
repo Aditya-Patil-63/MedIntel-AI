@@ -1,14 +1,15 @@
 import 'package:equatable/equatable.dart';
 import '../reference/editable_measurement.dart';
 import '../reference/patient_context.dart';
+import '../reference/patient_details.dart';
 
-/// Immutable snapshot of user-verified clinical measurements and demographic context
-/// captured at the exact moment of confirmation gate approval.
+/// Immutable snapshot of clinical measurements, patient details, and demographic context.
 class VerifiedSnapshot extends Equatable {
   final String id;
   final DateTime timestamp;
   final List<EditableMeasurement> measurements;
   final PatientContext patientContext;
+  final PatientDetails patientDetails;
   final bool isVerified;
 
   VerifiedSnapshot({
@@ -16,6 +17,7 @@ class VerifiedSnapshot extends Equatable {
     DateTime? timestamp,
     required List<EditableMeasurement> measurements,
     required this.patientContext,
+    this.patientDetails = const PatientDetails(),
     required this.isVerified,
   })  : id = id ?? 'snap_${DateTime.now().millisecondsSinceEpoch}',
         timestamp = timestamp ?? DateTime.now(),
@@ -25,6 +27,7 @@ class VerifiedSnapshot extends Equatable {
   static final VerifiedSnapshot empty = VerifiedSnapshot(
     measurements: const [],
     patientContext: const PatientContext(),
+    patientDetails: const PatientDetails(),
     isVerified: false,
   );
 
@@ -33,5 +36,5 @@ class VerifiedSnapshot extends Equatable {
   bool get hasMeasurements => measurements.isNotEmpty;
 
   @override
-  List<Object?> get props => [id, timestamp, measurements, patientContext, isVerified];
+  List<Object?> get props => [id, timestamp, measurements, patientContext, patientDetails, isVerified];
 }

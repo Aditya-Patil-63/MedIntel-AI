@@ -43,6 +43,7 @@ MedIntel AI is an intelligent mobile application that analyzes medical reports a
 | 15 | Strict user-partitioned report isolation (private SQLite data per user) |
 | 16 | Modern healthcare mobile design system & connection settings |
 | 17 | Prescription & Medicine Explainer (Objective 2: 4-column schedule table with doctor non-override safety flags) |
+| 18 | Actionable Health Insights Dashboard (Objective 3: 9-column structured parameters table, patient details extraction, clinical alerts, implications, precautions, and longitudinal biomarker tracking) |
 
 ---
 

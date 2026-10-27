@@ -22,6 +22,7 @@ from reference.models import (
     ReferenceRange,
     TestMeasurement,
 )
+from reference.guidance import get_clinical_guidance
 from reference.normalizer import AnalyteNormalizer
 from reference.ranges import ReferenceRangeRegistry, get_default_registry
 
@@ -135,6 +136,24 @@ class ReferenceAnalyzer:
         # 5. Elevated without critical threshold
         return Classification.HIGH
 
+    def _enrich_result(self, result: AnalysisResult) -> AnalysisResult:
+        """Enrich AnalysisResult with deterministic patient-friendly educational guidance."""
+        if result.alert_message is None:
+            alert, implications, precautions = get_clinical_guidance(
+                canonical_name=result.canonical_name,
+                test_name=result.original_test_name,
+                value=result.numeric_value,
+                value_text=result.original_value_text,
+                unit=result.normalized_unit or result.unit,
+                classification=result.classification.value if result.classification else None,
+                reference_low=result.reference_range.normal_low if result.reference_range else None,
+                reference_high=result.reference_range.normal_high if result.reference_range else None,
+            )
+            result.alert_message = alert
+            result.possible_health_implications = implications
+            result.precautions_and_next_steps = precautions
+        return result
+
     def analyze(
         self,
         measurement: Optional[Union[TestMeasurement, Dict[str, Any]]] = None,
@@ -144,11 +163,26 @@ class ReferenceAnalyzer:
         unit: Optional[str] = None,
         context: Optional[Union[PatientContext, Dict[str, Any]]] = None,
     ) -> AnalysisResult:
-        """
-        Analyze an individual medical test measurement against configured reference ranges.
+        """Analyze an individual medical test measurement and enrich with clinical guidance."""
+        raw_res = self._analyze_core(
+            measurement=measurement,
+            test_name=test_name,
+            value=value,
+            unit=unit,
+            context=context,
+        )
+        return self._enrich_result(raw_res)
 
-        Accepts either a TestMeasurement instance, a dictionary, or keyword arguments.
-        """
+    def _analyze_core(
+        self,
+        measurement: Optional[Union[TestMeasurement, Dict[str, Any]]] = None,
+        *,
+        test_name: Optional[str] = None,
+        value: Any = None,
+        unit: Optional[str] = None,
+        context: Optional[Union[PatientContext, Dict[str, Any]]] = None,
+    ) -> AnalysisResult:
+        """Core reference-range classification logic."""
         # Unpack input parameters
         raw_test_name = test_name
         raw_val = value

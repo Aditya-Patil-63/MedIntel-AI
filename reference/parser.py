@@ -20,6 +20,7 @@ from reference.models import (
     ParsedMeasurement,
     ParserStatus,
     PatientContext,
+    PatientDetails,
 )
 from reference.normalizer import AnalyteNormalizer
 from reference.ranges import ReferenceRangeRegistry, get_default_registry
@@ -333,3 +334,134 @@ class MedicalValueParser:
             pipeline_results.append((parsed, analysis))
 
         return pipeline_results
+
+    def extract_details(self, document_text: str) -> PatientDetails:
+        """Extract patient and administrative details from document text."""
+        return extract_patient_details(document_text)
+
+
+def extract_patient_details(text: str) -> PatientDetails:
+    """
+    Extract administrative and demographic patient details from clinical report text.
+    If any field is missing or unreadable, defaults strictly to 'Not Available'
+    (guaranteeing zero fabricated or guessed personal data).
+    """
+    if not text or not text.strip():
+        return PatientDetails()
+
+    name = "Not Available"
+    age: Optional[float] = None
+    age_display = "Not Available"
+    gender = "Not Available"
+    date = "Not Available"
+    lab_name = "Not Available"
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+    # 1. Name extraction
+    name_patterns = [
+        r"(?:patient\s*name|pt\.?\s*name|^name)\s*[:=\-]\s*([A-Za-z\.\s]{2,40}?)(?=\s+(?:age|sex|gender|date|ref|dr|uid|reg|mrn)|\s*[\r\n]|$)",
+        r"\b(?:Mr\.|Mrs\.|Ms\.|Master|Shri|Smt\.?)\s+([A-Za-z\.\s]{2,35}?)(?=\s+(?:age|sex|gender|date|ref|dr)|\s*[\r\n]|$)",
+    ]
+    for pattern in name_patterns:
+        match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+        if match:
+            candidate = match.group(1).strip()
+            candidate = re.sub(r"[\s\:\-\.\,]+$", "", candidate).strip()
+            if candidate and len(candidate) >= 2 and not candidate.lower().startswith("is not a medical"):
+                name = candidate
+                break
+
+    # Line-by-line fallback for name
+    if name == "Not Available" and lines:
+        for line in lines:
+            m = re.match(r"^(?:patient\s*name|pt\.?\s*name|name)\s*[:=\-]\s*([A-Za-z\.\s]{2,40})$", line, re.IGNORECASE)
+            if m:
+                cand = m.group(1).strip()
+                if cand and len(cand) >= 2 and not cand.lower().startswith("is not a medical"):
+                    name = cand
+                    break
+
+    # 2. Age extraction
+    age_patterns = [
+        r"(?:age|age\s*/\s*sex|age\s*/\s*gender)\s*[:=\-]?\s*(\d{1,3})\s*(?:y|yrs|years|yr)?\b",
+        r"\b(\d{1,3})\s*(?:y|yrs|years)\s*(?:/\s*(?:male|female|m|f))?\b",
+    ]
+    for pattern in age_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            try:
+                val = float(match.group(1))
+                if 0 <= val <= 130:
+                    age = val
+                    age_display = f"{int(val)} Y"
+                    break
+            except ValueError:
+                pass
+
+    # 3. Gender extraction
+    gender_patterns = [
+        r"(?:sex|gender)\s*[:=\-]\s*(male|female|m|f|other)\b",
+        r"(?:age\s*/\s*sex)\s*[:=\-]?\s*\d+\s*(?:y|yrs|years)?\s*/?\s*(male|female|m|f)\b",
+        r"\b(?:age[:\s]+\d+\s*)?(?:/\s*)?(male|female)\b",
+    ]
+    for pattern in gender_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            raw_g = match.group(1).strip().upper()
+            if raw_g in {"M", "MALE"}:
+                gender = "Male"
+                break
+            elif raw_g in {"F", "FEMALE"}:
+                gender = "Female"
+                break
+            elif raw_g == "OTHER":
+                gender = "Other"
+                break
+
+    # 4. Date extraction
+    date_patterns = [
+        r"(?:collection\s*date|sample\s*date|reported\s*date|reg\.?\s*date|date)\s*[:=\-]\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})",
+        r"\b(\d{1,2}[/-]\d{1,2}[/-]\d{4})\b",
+    ]
+    for pattern in date_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            date = match.group(1).strip()
+            break
+
+    # 5. Laboratory / Clinic extraction
+    # First inspect top 5 header lines for healthcare / diagnostic lab titles
+    if lines:
+        for line in lines[:5]:
+            lower_line = line.lower()
+            if any(term in lower_line for term in [
+                "pathology", "diagnostic", "laboratory", "hospital", "clinic",
+                "metropolis", "dr. lal", "thyrocare", "apollo", "srl", "centre", "center"
+            ]):
+                if len(line) <= 70 and not any(k in lower_line for k in ["name:", "patient", "age:", "date:"]):
+                    lab_name = line
+                    break
+
+    # Fallback to explicit lab prefix pattern if not found
+    if lab_name == "Not Available":
+        lab_patterns = [
+            r"(?:laboratory|hospital|clinic|diagnostic(?:s)?|pathology|center|centre|lab)\s*name\s*[:=\-]\s*([A-Za-z0-9\s\.,&]{3,50}?)(?=\n|$)",
+        ]
+        for pattern in lab_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                candidate = match.group(1).strip()
+                if candidate and len(candidate) >= 3:
+                    lab_name = candidate
+                    break
+
+    return PatientDetails(
+        name=name,
+        age=age,
+        age_display=age_display,
+        gender=gender,
+        date=date,
+        lab_name=lab_name,
+    )
+

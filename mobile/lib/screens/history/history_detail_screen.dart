@@ -320,6 +320,10 @@ class HistoryDetailScreen extends StatelessWidget {
         bg = AppColors.criticalBg;
         fg = AppColors.critical;
         break;
+      case AnalyteClassification.requiresReview:
+        bg = const Color(0xFFF1F5F9);
+        fg = const Color(0xFF475569);
+        break;
     }
 
     return Container(

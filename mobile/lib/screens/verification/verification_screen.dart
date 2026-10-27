@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_colors.dart';
-import '../../models/analysis/verified_snapshot.dart';
 import '../../models/reference/editable_measurement.dart';
 import '../../models/reference/patient_context.dart';
 import '../../state/analysis/analysis_cubit.dart';
@@ -828,13 +827,8 @@ class _VerificationScreenState extends State<VerificationScreen> {
                                 .confirmVerification();
                             if (!success) return;
                           }
-                          final verifiedState =
-                              context.read<VerificationCubit>().state;
-                          final snapshot = VerifiedSnapshot(
-                            measurements: verifiedState.measurements,
-                            patientContext: verifiedState.patientContext,
-                            isVerified: verifiedState.isVerified,
-                          );
+                          final snapshot =
+                              context.read<VerificationCubit>().createSnapshot();
                           context
                               .read<AnalysisCubit>()
                               .runFullAnalysis(snapshot);

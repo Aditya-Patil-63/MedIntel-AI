@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_colors.dart';
+import '../../state/analysis/analysis_cubit.dart';
 import '../../state/document/document_cubit.dart';
 import '../../state/document/document_state.dart';
 import '../../state/verification/verification_cubit.dart';
 import '../../widgets/server_settings_dialog.dart';
 import '../prescription/prescription_explainer_screen.dart';
+import '../results/results_screen.dart';
 import '../verification/verification_screen.dart';
 
 /// Redesigned production-grade document upload and extraction experience.
@@ -592,17 +594,92 @@ class UploadScreen extends StatelessWidget {
         ),
         const SizedBox(height: 20),
 
-        // Action Buttons
+        // Action Buttons (Objective 3: Automated Zero-Manual-Entry Analysis Pipeline)
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            icon: const Icon(Icons.arrow_forward_rounded),
+            icon: const Icon(Icons.auto_awesome_rounded),
             label: const Text(
-              'Proceed to Verification Gate',
+              'Auto-Analyze Report (Instant)',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
+              elevation: 2,
+            ),
+            onPressed: () async {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => const Center(
+                  child: Card(
+                    margin: EdgeInsets.all(24),
+                    child: Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(strokeWidth: 3),
+                          SizedBox(width: 16),
+                          Text(
+                            'Analyzing report automatically...',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+
+              try {
+                final vCubit = context.read<VerificationCubit>();
+                await vCubit.parseExtractedText(result.fullText);
+                final snapshot = vCubit.createSnapshot(autoConfirm: true);
+
+                if (context.mounted) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                  context.read<AnalysisCubit>().runFullAnalysis(snapshot);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ResultsScreen(),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Auto-analysis error: $e'),
+                      backgroundColor: AppColors.critical,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.tune_rounded, size: 18),
+            label: const Text(
+              'Review & Verify Measurements (Optional)',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              foregroundColor: AppColors.textPrimary,
             ),
             onPressed: () {
               context
@@ -620,10 +697,14 @@ class UploadScreen extends StatelessWidget {
         const SizedBox(height: 10),
         SizedBox(
           width: double.infinity,
-          child: OutlinedButton(
+          child: TextButton.icon(
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Upload a Different Report'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+            ),
             onPressed: () =>
                 context.read<DocumentCubit>().pickAndProcessDocument(),
-            child: const Text('Upload a Different Report'),
           ),
         ),
       ],

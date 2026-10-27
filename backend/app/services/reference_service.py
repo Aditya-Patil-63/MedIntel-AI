@@ -47,6 +47,7 @@ from app.schemas.reference import (
     ParseAndAnalyzeResponse,
     ParsedAndAnalyzedItemSchema,
     PatientContextSchema,
+    PatientDetailsSchema,
     ReferenceRangeSummarySchema,
 )
 
@@ -113,6 +114,9 @@ class ReferenceService:
             analysis_status=analysis.status.value,
             reference_range=ref_summary,
             reference_source=analysis.reference_source,
+            alert_message=analysis.alert_message,
+            possible_health_implications=analysis.possible_health_implications,
+            precautions_and_next_steps=analysis.precautions_and_next_steps,
             is_user_verified=is_user_verified,
             persisted_test_result_id=persisted_id,
             warnings=analysis.warnings,
@@ -219,11 +223,20 @@ class ReferenceService:
             request.persist,
         )
 
+        batch_details = None
+        if request.patient_context:
+            batch_details = PatientDetailsSchema(
+                age=request.patient_context.age,
+                age_display=f"{int(request.patient_context.age)} Y" if request.patient_context.age is not None else "Not Available",
+                gender="Male" if request.patient_context.sex == "M" else ("Female" if request.patient_context.sex == "F" else (request.patient_context.sex or "Not Available")),
+            )
+
         return BatchAnalysisResponse(
             success=True,
             total_submitted=len(request.measurements),
             total_classified=classified_count,
             report_id=request.report_id,
+            patient_details=batch_details,
             results=results,
         )
 
@@ -255,7 +268,23 @@ class ReferenceService:
                     detail=f"Report with id {request.report_id} not found.",
                 )
 
+        # Extract administrative and patient details from document text
+        extracted_details = self.parser.extract_details(request.text)
+        details_schema = PatientDetailsSchema(
+            name=extracted_details.name,
+            age=extracted_details.age,
+            age_display=extracted_details.age_display,
+            gender=extracted_details.gender,
+            date=extracted_details.date,
+            lab_name=extracted_details.lab_name,
+        )
+
         shared_ctx = self._to_patient_context(request.patient_context)
+        # If age or sex was extracted from text and context was missing, infer context
+        if not shared_ctx and (extracted_details.age or extracted_details.gender != "Not Available"):
+            inferred_sex = "M" if extracted_details.gender.lower() == "male" else ("F" if extracted_details.gender.lower() == "female" else None)
+            shared_ctx = PatientContext(age=extracted_details.age, sex=inferred_sex)
+
         parsed_items = self.parser.parse_text(
             request.text,
             include_unrecognized=request.include_unrecognized,
@@ -339,6 +368,7 @@ class ReferenceService:
             total_lines_parsed=len(output_items),
             total_measurements_analyzed=analyzed_count,
             report_id=request.report_id,
+            patient_details=details_schema,
             items=output_items,
         )
 

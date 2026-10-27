@@ -14,6 +14,7 @@ import '../../widgets/disclaimer_banner.dart';
 import '../../widgets/genai_explanation_card.dart';
 import '../../widgets/ml_risk_card.dart';
 import '../../widgets/reference_findings_card.dart';
+import '../../widgets/structured_medical_table.dart';
 
 /// Redesigned clinical results dashboard combining deterministic laboratory
 /// findings, statistical ML disease risk predictions, and multilingual GenAI explanations.
@@ -187,7 +188,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   _buildResultsOverviewCard(state),
                   const SizedBox(height: 16),
 
-                  // 6. Laboratory Reference Findings Card (Phase 6)
+                  // 6. Structured Medical Parameters & Analysis Table (Objective 3 Specification)
+                  if (state.referenceAnalysis != null &&
+                      state.referenceAnalysis!.results.isNotEmpty) ...[
+                    StructuredMedicalTable(
+                      patientDetails: state.snapshot?.patientDetails ??
+                          state.referenceAnalysis?.patientDetails,
+                      results: state.referenceAnalysis!.results,
+                      disclaimer: state.referenceAnalysis!.disclaimer,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 7. Laboratory Reference Findings Card (Phase 6)
                   ReferenceFindingsCard(
                     response: state.referenceAnalysis,
                     errorMessage: state.referenceError,

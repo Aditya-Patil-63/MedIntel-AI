@@ -1,11 +1,13 @@
 import 'package:equatable/equatable.dart';
 import '../../models/reference/editable_measurement.dart';
 import '../../models/reference/patient_context.dart';
+import '../../models/reference/patient_details.dart';
 
 /// State of the human-in-the-loop medical verification gate.
 class VerificationState extends Equatable {
   final List<EditableMeasurement> measurements;
   final PatientContext patientContext;
+  final PatientDetails patientDetails;
   final bool isVerified;
   final bool isParsing;
   final String? statusMessage;
@@ -14,6 +16,7 @@ class VerificationState extends Equatable {
   const VerificationState({
     this.measurements = const [],
     this.patientContext = const PatientContext(),
+    this.patientDetails = const PatientDetails(),
     this.isVerified = false,
     this.isParsing = false,
     this.statusMessage,
@@ -37,6 +40,7 @@ class VerificationState extends Equatable {
   VerificationState copyWith({
     List<EditableMeasurement>? measurements,
     PatientContext? patientContext,
+    PatientDetails? patientDetails,
     bool? isVerified,
     bool? isParsing,
     String? statusMessage,
@@ -45,6 +49,7 @@ class VerificationState extends Equatable {
     return VerificationState(
       measurements: measurements ?? this.measurements,
       patientContext: patientContext ?? this.patientContext,
+      patientDetails: patientDetails ?? this.patientDetails,
       isVerified: isVerified ?? this.isVerified,
       isParsing: isParsing ?? this.isParsing,
       statusMessage: statusMessage,
@@ -56,6 +61,7 @@ class VerificationState extends Equatable {
   List<Object?> get props => [
         measurements,
         patientContext,
+        patientDetails,
         isVerified,
         isParsing,
         statusMessage,

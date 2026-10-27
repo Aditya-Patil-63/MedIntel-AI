@@ -88,6 +88,19 @@ class PatientContext(BaseModel):
     )
 
 
+class PatientDetails(BaseModel):
+    """
+    Extracted patient demographic and document administrative details.
+    Missing or unreadable values default strictly to 'Not Available' (no guessing).
+    """
+    name: str = Field(default="Not Available", description="Patient name or 'Not Available'")
+    age: Optional[float] = Field(default=None, description="Patient age in years")
+    age_display: str = Field(default="Not Available", description="Display age or 'Not Available'")
+    gender: str = Field(default="Not Available", description="Gender / biological sex or 'Not Available'")
+    date: str = Field(default="Not Available", description="Report or collection date or 'Not Available'")
+    lab_name: str = Field(default="Not Available", description="Laboratory / diagnostic center or 'Not Available'")
+
+
 # ---------------------------------------------------------------------------
 # Reference Range Definition
 # ---------------------------------------------------------------------------
@@ -241,6 +254,18 @@ class AnalysisResult(BaseModel):
     reference_source: Optional[str] = Field(
         default=None,
         description="Authoritative source citation of the applied reference range",
+    )
+    alert_message: Optional[str] = Field(
+        default=None,
+        description="Patient-friendly alert message explaining abnormal or normal findings",
+    )
+    possible_health_implications: Optional[str] = Field(
+        default=None,
+        description="Educational discussion of potential health implications",
+    )
+    precautions_and_next_steps: Optional[str] = Field(
+        default=None,
+        description="Guidance on precautions and consulting healthcare professionals",
     )
     status: AnalysisStatus = Field(
         ...,

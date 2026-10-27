@@ -386,6 +386,8 @@ void main() {
       expect(find.text('View Snapshot'), findsOneWidget);
 
       // 11. Tap History Card to inspect read-only HistoryDetailScreen
+      await tester.ensureVisible(find.text('View Snapshot'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('View Snapshot'));
       await tester.pumpAndSettle();
       expect(find.byType(HistoryDetailScreen), findsOneWidget);
