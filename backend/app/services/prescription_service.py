@@ -5,18 +5,20 @@ Objective 2: Helping patients understand what the doctor has prescribed,
 including the medicines, their purpose, and how they should be taken.
 
 Features:
-- Deterministic extraction and parsing of prescription text and medication lines.
-- Comprehensive audited clinical pharmaceutical dictionary covering 30+ core
-  outpatient medication classes (Diabetes, Hypertension, Heart, Pain, Antibiotics,
-  Acidity, Vitamins, Respiratory, Thyroid).
+- Deterministic extraction and parsing of prescription text, medication lines, dosage, and schedules.
+- Robust header and doctor advice filtering to separate doctor advice from prescribed medications.
+- Comprehensive audited clinical pharmaceutical dictionary covering 40+ core outpatient medications
+  and common Indian brand names (Metformin, Telmisartan, Amlodipine, Atorvastatin, Pantoprazole,
+  Augmentin, Paracetamol/Dolo, Azithromycin, Levocetirizine/Montair, Thyronorm, Shelcal, etc.).
 - Multilingual translations for English, Hindi, Marathi, and Gujarati.
-- Generates medicine purpose, exact timing schedule (Morning/Noon/Night),
-  food relation (Before/After food), instructions, and questions for doctor/pharmacist.
+- Exact table schema alignment (Medicine Name, Purpose, Dosage, When to Take).
+- Safety guardrails: Uncatalogued or ambiguous extractions flag pharmacist/doctor confirmation.
+- Gemini integration must NOT override doctor's instructions.
 """
 
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from app.core.config import settings
 from app.schemas.prescription import (
@@ -30,11 +32,13 @@ logger = logging.getLogger("medintel.prescription_service")
 
 
 # ---------------------------------------------------------------------------
-# Audited Clinical Knowledge Base of Common Medications
+# Audited Clinical Knowledge Base of Common Medications (40+ Drugs & Brands)
 # ---------------------------------------------------------------------------
 
-CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
+CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, Any]] = {
+    # 1. Diabetes
     "metformin": {
+        "aliases": ["metformin", "glycomet", "glucophage"],
         "generic": "Metformin Hydrochloride",
         "default_dosage": "500 mg Tablet",
         "classes": "Anti-diabetic (Biguanide)",
@@ -65,6 +69,7 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
         "precautions": "Inform your doctor if you experience persistent nausea, severe stomach upset, or extreme fatigue.",
     },
     "glimepiride": {
+        "aliases": ["glimepiride", "amaryl", "zoryl"],
         "generic": "Glimepiride",
         "default_dosage": "1 mg / 2 mg Tablet",
         "classes": "Anti-diabetic (Sulfonylurea)",
@@ -94,7 +99,72 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
         },
         "precautions": "Risk of low blood sugar (hypoglycemia) if meals are skipped.",
     },
+    "dapagliflozin": {
+        "aliases": ["dapagliflozin", "forxiga", "oxra", "dapa"],
+        "generic": "Dapagliflozin (SGLT2 Inhibitor)",
+        "default_dosage": "10 mg Tablet",
+        "classes": "Anti-diabetic & Cardiorenal Protector",
+        "purpose": {
+            "english": "Removes excess blood sugar through urine and protects kidneys and heart function.",
+            "hindi": "पेशाब के माध्यम से अतिरिक्त रक्त शर्करा को बाहर निकालता है और गुर्दे तथा हृदय की कार्यप्रणाली की रक्षा करता है।",
+            "marathi": "मूत्रावाटे जास्तीची साखर बाहेर टाकते आणि मूत्रपिंड व हृदयाच्या आरोग्याचे रक्षण करते.",
+            "gujarati": "પેશાબ દ્વારા વધારાની ખાંડ બહાર કાઢે છે અને કિડની તથા હૃદયને રક્ષણ આપે છે.",
+        },
+        "when_to_take": {
+            "english": "Once daily in the morning with or without food",
+            "hindi": "सुबह एक बार भोजन के साथ या बिना भोजन के",
+            "marathi": "सकाळी एकदा जेवणासोबत किंवा जेवणाशिवाय",
+            "gujarati": "સવારે એક વાર જમ્યા સાથે અથવા જમ્યા વગર",
+        },
+        "schedule": {
+            "english": "Once daily (Morning) — With or without meals.",
+            "hindi": "दिन में एक बार (सुबह) — भोजन के साथ या बिना भोजन के लें।",
+            "marathi": "दिवसातून एकदा (सकाळी) — जेवणासोबत किंवा जेवणाशिवाय घ्या.",
+            "gujarati": "દિવસમાં એક વાર (સવાર) — જમ્યા સાથે અથવા જમ્યા વગર લો.",
+        },
+        "instructions": {
+            "english": "Drink adequate water throughout the day to avoid dehydration and maintain genital hygiene.",
+            "hindi": "दिन भर पर्याप्त पानी पिएं ताकि निर्जलीकरण (डिहाइड्रेशन) न हो।",
+            "marathi": "डिहायड्रेशन टाळण्यासाठी दिवसभरात भरपूर पाणी प्या.",
+            "gujarati": "ડિહાઇડ્રેશન ટાળવા માટે દિવસ દરમિયાન પૂરતું પાણી પીવો.",
+        },
+        "precautions": "Monitor for symptoms of urinary tract infections or excessive thirst.",
+    },
+    "vildagliptin": {
+        "aliases": ["vildagliptin", "galvus", "jalra"],
+        "generic": "Vildagliptin (DPP-4 Inhibitor)",
+        "default_dosage": "50 mg Tablet",
+        "classes": "Anti-diabetic (DPP-4 Inhibitor)",
+        "purpose": {
+            "english": "Stimulates the pancreas to produce insulin after meals and reduces glucagon production.",
+            "hindi": "भोजन के बाद इंसुलिन उत्पादन बढ़ाने और ग्लूकोज स्तर को नियंत्रित करने में मदद करता है।",
+            "marathi": "जेवणानंतर इन्सुलिन तयार करण्यास मदत करते आणि रक्तातील साखर नियंत्रित ठेवते.",
+            "gujarati": "જમ્યા પછી ઇન્સ્યુલિન ઉત્પાદન વધારવામાં મદદ કરે છે અને બ્લડ સુગર નિયંત્રિત રાખે છે.",
+        },
+        "when_to_take": {
+            "english": "Once or twice daily with or after meals",
+            "hindi": "दिन में एक या दो बार भोजन के साथ या भोजन के बाद",
+            "marathi": "दिवसातून १ किंवा २ वेळा जेवणासोबत किंवा जेवणानंतर",
+            "gujarati": "દિવસમાં 1 અથવા 2 વાર જમ્યા સાથે અથવા જમ્યા પછી",
+        },
+        "schedule": {
+            "english": "Once or twice daily — Taken with or after meals.",
+            "hindi": "दिन में 1 या 2 बार — भोजन के साथ या बाद में लें।",
+            "marathi": "दिवसातून १ किंवा २ वेळा — जेवणासोबत किंवा जेवणानंतर घ्या.",
+            "gujarati": "દિવસમાં 1 અથવા 2 વાર — જમવાની સાથે અથવા જમ્યા પછી લો.",
+        },
+        "instructions": {
+            "english": "Swallow with water. Can be combined with metformin as prescribed.",
+            "hindi": "पानी के साथ लें। डॉक्टर की सलाह अनुसार मेटफॉर्मिन के साथ भी ली जा सकती है।",
+            "marathi": "पाण्यासोबत घ्या. डॉक्टरांच्या सल्ल्यानुसार मेटफॉर्मिनसोबत घेता येते.",
+            "gujarati": "પાણી સાથે લો. ડૉક્ટરની સલાહ મુજબ અન્ય દવા સાથે લઈ શકાય.",
+        },
+        "precautions": "Periodic liver function testing may be advised by your physician.",
+    },
+
+    # 2. Hypertension & Cardiovascular
     "amlodipine": {
+        "aliases": ["amlodipine", "stamlo", "amlopres"],
         "generic": "Amlodipine Besylate",
         "default_dosage": "5 mg Tablet",
         "classes": "Antihypertensive (Calcium Channel Blocker)",
@@ -125,6 +195,7 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
         "precautions": "Mild ankle swelling or dizziness upon standing up quickly may occur initially.",
     },
     "telmisartan": {
+        "aliases": ["telmisartan", "telma", "telmikind"],
         "generic": "Telmisartan",
         "default_dosage": "40 mg Tablet",
         "classes": "Antihypertensive (Angiotensin Receptor Blocker)",
@@ -154,7 +225,39 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
         },
         "precautions": "Do not take potassium supplements without consulting your prescribing doctor.",
     },
+    "losartan": {
+        "aliases": ["losartan", "losar", "cozaar"],
+        "generic": "Losartan Potassium",
+        "default_dosage": "50 mg Tablet",
+        "classes": "Antihypertensive (ARB)",
+        "purpose": {
+            "english": "Lowers blood pressure, relaxes blood vessels, and reduces risk of stroke in hypertensive patients.",
+            "hindi": "रक्तचाप कम करता है, धमनियों को शिथिल करता है और स्ट्रोक के जोखिम को घटाता है।",
+            "marathi": "रक्तदाब कमी करते, रक्तवाहिन्या मोकळ्या करते आणि पक्षाघाताचा (स्ट्रोक) धोका कमी करते.",
+            "gujarati": "બ્લડ પ્રેશર ઘટાડે છે, નળીઓને રિલેક્સ કરે છે અને સ્ટ્રોકનું જોખમ ઓછું કરે છે.",
+        },
+        "when_to_take": {
+            "english": "Once daily with or without food (Morning)",
+            "hindi": "दिन में एक बार भोजन के साथ या बिना भोजन के (सुबह)",
+            "marathi": "दिवसातून एकदा जेवणासोबत किंवा जेवणाशिवाय (सकाळी)",
+            "gujarati": "દિવસમાં એક વાર જમ્યા સાથે અથવા જમ્યા વગર (સવારે)",
+        },
+        "schedule": {
+            "english": "Once daily (Morning) — With or without meals.",
+            "hindi": "दिन में एक बार (सुबह) — भोजन के साथ या बिना भोजन के लें।",
+            "marathi": "दिवसातून एकदा (सकाळी) — जेवणासोबत किंवा जेवणाशिवाय घ्या.",
+            "gujarati": "દિવસમાં એક વાર (સવાર) — જમ્યા સાથે અથવા જમ્યા વગર લો.",
+        },
+        "instructions": {
+            "english": "Take at the same time each day. Avoid rising too fast from sitting positions.",
+            "hindi": "रोज एक ही समय पर लें। अचानक तेजी से उठने से बचें।",
+            "marathi": "दररोज एकाच वेळी घ्या. बसल्या जागेवरून एकदम उठणे टाळा.",
+            "gujarati": "રોજ નિયત સમયે લો. બેઠા પછી અચાનક ઝડપથી ઊભા ન થવું.",
+        },
+        "precautions": "Do not combine with other salt substitutes containing potassium without physician approval.",
+    },
     "atorvastatin": {
+        "aliases": ["atorvastatin", "atorva", "lipitor", "atorlip"],
         "generic": "Atorvastatin Calcium",
         "default_dosage": "10 mg / 20 mg Tablet",
         "classes": "Lipid-lowering agent (Statin)",
@@ -184,7 +287,134 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
         },
         "precautions": "Report any unexplained muscle pain or extreme weakness to your doctor.",
     },
+    "rosuvastatin": {
+        "aliases": ["rosuvastatin", "rosuvas", "crestor", "rosave"],
+        "generic": "Rosuvastatin Calcium",
+        "default_dosage": "10 mg / 20 mg Tablet",
+        "classes": "Potent Lipid-lowering agent (Statin)",
+        "purpose": {
+            "english": "Significantly lowers bad cholesterol (LDL) and prevents heart attacks and stroke.",
+            "hindi": "खराब कोलेस्ट्रॉल (एलडीएल) को तेजी से घटाता है और दिल के दौरे (हार्ट अटैक) तथा स्ट्रोक से बचाता है।",
+            "marathi": "वाईट कोलेस्ट्रॉल (LDL) मोठ्या प्रमाणावर कमी करते आणि हृदयविकाराचा झटका व पक्षाघातापासून बचाव करते.",
+            "gujarati": "ખરાબ કોલેસ્ટ્રોલ ઘટાડે છે અને હાર્ટ અટેક તથા સ્ટ્રોકથી રક્ષણ આપે છે.",
+        },
+        "when_to_take": {
+            "english": "Once daily at night after dinner",
+            "hindi": "रात को भोजन के बाद (दिन में एक बार)",
+            "marathi": "रात्री जेवणानंतर (दिवसातून एकदा)",
+            "gujarati": "રાત્રે જમ્યા પછી (દિવસમાં એક વાર)",
+        },
+        "schedule": {
+            "english": "Once daily at Night — Taken after dinner.",
+            "hindi": "दिन में एक बार रात को — भोजन के बाद लें।",
+            "marathi": "दिवसातून एकदा रात्री — जेवणानंतर घ्या.",
+            "gujarati": "દિવસમાં એક વાર રાત્રે — જમ્યા પછી લો.",
+        },
+        "instructions": {
+            "english": "Take whole with water. Avoid excess fatty, fried, or processed food.",
+            "hindi": "पानी के साथ पूरी गोली लें। अधिक चिकनाई या तला-भुना खाना न खाएं।",
+            "marathi": "पाण्यासोबत पूर्ण गोळी घ्या. तेलकट आणि तळलेले पदार्थ खाणे टाळा.",
+            "gujarati": "પાણી સાથે આખી ગોળી લો. તેલવાળો અને તળેલો ખોરાક ટાળો.",
+        },
+        "precautions": "Notify physician if severe muscle cramps or unexplained brown urine develops.",
+    },
+    "aspirin": {
+        "aliases": ["aspirin", "ecosprin", "disprin", "asa"],
+        "generic": "Aspirin (Acetylsalicylic Acid)",
+        "default_dosage": "75 mg / 150 mg Tablet",
+        "classes": "Antiplatelet / Blood Thinner",
+        "purpose": {
+            "english": "Prevents blood platelets from clumping together to prevent blood clots, heart attack, and stroke.",
+            "hindi": "रक्त के थक्के बनने से रोकता है (खून पतला करता है) ताकि हार्ट अटैक और स्ट्रोक से बचाव हो सके।",
+            "marathi": "रक्ताच्या गुठळ्या होण्यास प्रतिबंध करते (रक्त पातळ करते) आणि हृदयविकाराचा झटका टाळते.",
+            "gujarati": "લોહીની ગંઠાઈઓ બનતી અટકાવે છે (લોહી પાતળું કરે છે) અને હાર્ટ અટેકથી રક્ષણ આપે છે.",
+        },
+        "when_to_take": {
+            "english": "Once daily immediately after lunch or dinner (with food)",
+            "hindi": "भोजन के तुरंत बाद (दोपहर या रात के खाने के बाद)",
+            "marathi": "जेवणानंतर लगेच (दुपारच्या किंवा रात्रीच्या जेवणानंतर)",
+            "gujarati": "જમ્યા પછી તરત જ (બપોરના અથવા રાત્રિના ભોજન પછી)",
+        },
+        "schedule": {
+            "english": "Once daily — Always take immediately AFTER meals with water.",
+            "hindi": "दिन में एक बार — हमेशा भोजन के तुरंत बाद पानी के साथ लें।",
+            "marathi": "दिवसातून एकदा — नेहमी जेवणानंतर लगेच पाण्यासोबत घ्या.",
+            "gujarati": "દિવસમાં એક વાર — હંમેશા જમ્યા પછી તરત જ પાણી સાથે લો.",
+        },
+        "instructions": {
+            "english": "NEVER take on an empty stomach to prevent gastric irritation. Swallow whole.",
+            "hindi": "पेट में जलन से बचने के लिए इसे कभी खाली पेट न लें। पूरी गोली निगलें।",
+            "marathi": "पोटातील जळजळ टाळण्यासाठी उपाशीपोटी कधीही घेऊ नका. गोळी पूर्ण गिळा.",
+            "gujarati": "પેટમાં બળતરા ટાળવા માટે ક્યારેય ભૂખ્યા પેટે ન લેવી. આખી ગોળી ગળી જવી.",
+        },
+        "precautions": "Inform your dentist or surgeon that you take blood thinners before any procedure.",
+    },
+    "clopidogrel": {
+        "aliases": ["clopidogrel", "clopilet", "plavix"],
+        "generic": "Clopidogrel Bisulfate",
+        "default_dosage": "75 mg Tablet",
+        "classes": "Antiplatelet",
+        "purpose": {
+            "english": "Keeps blood flowing smoothly and prevents arterial clots in patients with heart stents or stroke risk.",
+            "hindi": "धमनियों में खून का थक्का जमने से रोकता है, विशेषकर स्टेंट लगने के बाद या स्ट्रोक के जोखिम में।",
+            "marathi": "धमन्यांमध्ये रक्ताची गुठळी होण्यापासून रोखते, विशेषतः हृदयविकार किंवा स्टेंट बसवल्यानंतर.",
+            "gujarati": "હૃદયમાં સ્ટેન્ટ મૂક્યા પછી અથવા હાર્ટ અટેક પછી લોહીની ગંઠાઈ બનતી અટકાવે છે.",
+        },
+        "when_to_take": {
+            "english": "Once daily with or after meals at a fixed time",
+            "hindi": "भोजन के साथ या बाद में एक निश्चित समय पर (दिन में एक बार)",
+            "marathi": "जेवणासोबत किंवा जेवणानंतर एकाच ठराविक वेळी (दिवसातून एकदा)",
+            "gujarati": "જમ્યા સાથે અથવા જમ્યા પછી નિયત સમયે (દિવસમાં એક વાર)",
+        },
+        "schedule": {
+            "english": "Once daily — Taken with or after meals.",
+            "hindi": "दिन में एक बार — भोजन के साथ या बाद में लें।",
+            "marathi": "दिवसातून एकदा — जेवणासोबत किंवा जेवणानंतर घ्या.",
+            "gujarati": "દિવસમાં એક વાર — જમ્યા સાથે અથવા જમ્યા પછી લો.",
+        },
+        "instructions": {
+            "english": "Take at the exact same hour every day. Do not discontinue without cardiologist approval.",
+            "hindi": "रोजाना ठीक उसी समय लें। हृदय रोग विशेषज्ञ की सलाह के बिना बंद न करें।",
+            "marathi": "दररोज एकाच वेळी घ्या. डॉक्टरांच्या सल्ल्याशिवाय बंद करू नका.",
+            "gujarati": "રોજ એક જ સમયે લો. ડૉક્ટરની મંજૂરી વિના દવા બંધ ન કરો.",
+        },
+        "precautions": "Be cautious with sharp objects; easy bruising or minor bleeding may take longer to stop.",
+    },
+    "metoprolol": {
+        "aliases": ["metoprolol", "betaloc", "metolar"],
+        "generic": "Metoprolol Succinate / Tartrate",
+        "default_dosage": "25 mg / 50 mg Tablet",
+        "classes": "Antihypertensive & Antiarrhythmic (Beta Blocker)",
+        "purpose": {
+            "english": "Slows rapid heart rate, lowers blood pressure, and relieves chest pain (angina).",
+            "hindi": "तेज दिल की धड़कन को सामान्य करता है, रक्तचाप कम करता है और सीने के दर्द से राहत देता है।",
+            "marathi": "हृदयाचे जलद ठोके नियंत्रित करते, रक्तदाब कमी करते आणि छातीतील वेदना कमी करते.",
+            "gujarati": "હૃદયના ઝડપી ધબકારા નિયંત્રિત કરે છે, બ્લડ પ્રેશર ઘટાડે છે અને છાતીના દુખાવામાં રાહત આપે છે.",
+        },
+        "when_to_take": {
+            "english": "Once or twice daily with or immediately after meals",
+            "hindi": "दिन में एक या दो बार भोजन के तुरंत बाद",
+            "marathi": "दिवसातून १ किंवा २ वेळा जेवणानंतर लगेच",
+            "gujarati": "દિવસમાં 1 અથવા 2 વાર જમ્યા પછી તરત જ",
+        },
+        "schedule": {
+            "english": "Once or twice daily — Taken with or immediately after food.",
+            "hindi": "दिन में 1 या 2 बार — भोजन के साथ या तुरंत बाद लें।",
+            "marathi": "दिवसातून १ किंवा २ वेळा — जेवणासोबत किंवा लगेच घ्या.",
+            "gujarati": "દિવસમાં 1 અથવા 2 વાર — જમ્યા પછી તરત જ લો.",
+        },
+        "instructions": {
+            "english": "Check your resting pulse rate regularly. Do not stop abruptly to avoid rebound high blood pressure.",
+            "hindi": "नियमित रूप से अपनी नब्ज (पल्स) जांचें। इसे अचानक बंद न करें।",
+            "marathi": "आपली नाडी (पल्स) नियमित तपासा. हे औषध अचानक बंद करू नका.",
+            "gujarati": "તમારા પલ્સ રેટ નિયમિત માપો. અચાનક દવા બંધ કરશો નહીં.",
+        },
+        "precautions": "May mask signs of low blood sugar (such as rapid heart rate) in diabetic individuals.",
+    },
+
+    # 3. Gastrointestinal & Acidity
     "pantoprazole": {
+        "aliases": ["pantoprazole", "pan", "pantocid", "pantodac"],
         "generic": "Pantoprazole Sodium",
         "default_dosage": "40 mg Tablet / Capsule",
         "classes": "Gastrointestinal (Proton Pump Inhibitor)",
@@ -214,7 +444,103 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
         },
         "precautions": "Avoid very spicy or deep-fried food while recovering from gastritis.",
     },
+    "omeprazole": {
+        "aliases": ["omeprazole", "omez", "prilosec"],
+        "generic": "Omeprazole",
+        "default_dosage": "20 mg Capsule",
+        "classes": "Antacid / Proton Pump Inhibitor",
+        "purpose": {
+            "english": "Lowers stomach acid secretion to treat gastric acid reflux, peptic ulcers, and dyspepsia.",
+            "hindi": "पेट में एसिड के स्राव को कम करके एसिडिटी, पेट के छाले और अपच को ठीक करता है।",
+            "marathi": "पोटातील आम्ल कमी करून ॲसिडिटी, अल्सर आणि अपचन यावर उपचार करते.",
+            "gujarati": "પેટમાં એસિડનું પ્રમાણ ઘટાડી એસિડિટી, અલ્સર અને અપચામાં રાહત આપે છે.",
+        },
+        "when_to_take": {
+            "english": "30 minutes before morning meal on empty stomach",
+            "hindi": "सुबह के भोजन से 30 मिनट पहले खाली पेट",
+            "marathi": "सकाळच्या जेवणाआधी ३० मिनिटे उपाशीपोटी",
+            "gujarati": "સવારના ભોજનના 30 મિનિટ પહેલાં ભૂખ્યા પેટે",
+        },
+        "schedule": {
+            "english": "Once daily (Morning) — 30 minutes before breakfast.",
+            "hindi": "दिन में एक बार (सुबह) — नाश्ते से 30 मिनट पहले लें।",
+            "marathi": "दिवसातून एकदा (सकाळी) — नाश्त्याच्या ३० मिनिटे आधी घ्या.",
+            "gujarati": "દિવસમાં એક વાર (સવાર) — નાસ્તાના 30 મિનિટ પહેલાં લો.",
+        },
+        "instructions": {
+            "english": "Take with water before food. Do not chew the capsule beads.",
+            "hindi": "भोजन से पहले पानी के साथ लें। कैप्सूल को चबाएं नहीं।",
+            "marathi": "जेवणाआधी पाण्यासोबत घ्या. कॅप्सूल चावू नका.",
+            "gujarati": "ભોજન પહેલાં પાણી સાથે લો. કેપ્સ્યુલ ચાવવી નહીં.",
+        },
+        "precautions": "Long-term unmonitored use should be discussed with your physician.",
+    },
+    "rabeprazole": {
+        "aliases": ["rabeprazole", "razo", "happi", "parit"],
+        "generic": "Rabeprazole Sodium",
+        "default_dosage": "20 mg Tablet",
+        "classes": "Proton Pump Inhibitor",
+        "purpose": {
+            "english": "Provides fast relief from acidity, heartburn, and stomach acid irritation.",
+            "hindi": "एसिडिटी, सीने की जलन और पेट में गैस से तेजी से राहत दिलाता है।",
+            "marathi": "ॲसिडिटी, छातीतील जळजळ आणि पोटातील गॅसपासून जलद आराम देतो.",
+            "gujarati": "એસિડિટી, છાતીમાં બળતરા અને પેટના ગૅસમાંથી ઝડપી રાહત આપે છે.",
+        },
+        "when_to_take": {
+            "english": "Once daily before breakfast in the morning",
+            "hindi": "सुबह नाश्ते से पहले खाली पेट (दिन में एक बार)",
+            "marathi": "सकाळी नाश्त्यापूर्वी उपाशीपोटी (दिवसातून एकदा)",
+            "gujarati": "સવારે નાસ્તા પહેલાં ભૂખ્યા પેટે (દિવસમાં એક વાર)",
+        },
+        "schedule": {
+            "english": "Once daily (Morning) — On empty stomach.",
+            "hindi": "दिन में एक बार (सुबह) — खाली पेट लें।",
+            "marathi": "दिवसातून एकदा (सकाळी) — उपाशीपोटी घ्या.",
+            "gujarati": "દિવસમાં એક વાર (સવાર) — ભૂખ્યા પેટે લો.",
+        },
+        "instructions": {
+            "english": "Swallow whole with plain water 30 minutes prior to eating.",
+            "hindi": "खाने से 30 मिनट पहले सादे पानी के साथ सीधे निगलें।",
+            "marathi": "खाण्यापूर्वी ३० मिनिटे साध्या पाण्यासोबत गिळा.",
+            "gujarati": "જમવાના 30 મિનિટ પહેલાં સાદા પાણી સાથે ગળી જાઓ.",
+        },
+        "precautions": "Avoid late-night heavy meals to minimize nocturnal acid reflux.",
+    },
+    "domperidone": {
+        "aliases": ["domperidone", "vomistop", "motilium"],
+        "generic": "Domperidone",
+        "default_dosage": "10 mg Tablet / Syrup",
+        "classes": "Antiemetic & Prokinetic",
+        "purpose": {
+            "english": "Relieves nausea, vomiting, feeling of fullness, and promotes healthy stomach emptying.",
+            "hindi": "उल्टी, मतली, पेट भारी लगना और अपच से राहत दिलाता है।",
+            "marathi": "मळमळ, उलट्या, पोट फुगणे आणि अपचन यावर आराम देतो.",
+            "gujarati": "ઉબકા, ઉલટી, પેટ ભારે લાગવું અને અપચામાં રાહત આપે છે.",
+        },
+        "when_to_take": {
+            "english": "15 to 30 minutes before meals (Twice or thrice daily)",
+            "hindi": "भोजन से 15 से 30 मिनट पहले (दिन में दो या तीन बार)",
+            "marathi": "जेवणाच्या १५ ते ३० मिनिटे आधी (दिवसातून २ किंवा ३ वेळा)",
+            "gujarati": "જમવાના 15 થી 30 મિનિટ પહેલાં (દિવસમાં 2 અથવા 3 વાર)",
+        },
+        "schedule": {
+            "english": "Before meals (15–30 min prior) — Maximum 3 times daily.",
+            "hindi": "भोजन से 15-30 मिनट पहले लें — दिन में अधिकतम 3 बार।",
+            "marathi": "जेवणाच्या १५-३० मिनिटे आधी घ्या — दिवसातून जास्तीत जास्त ३ वेळा.",
+            "gujarati": "જમવાના 15-30 મિનિટ પહેલાં લો — દિવસમાં વધુમાં વધુ 3 વાર.",
+        },
+        "instructions": {
+            "english": "Take prior to food so it activates gut motility before meal reaches stomach.",
+            "hindi": "भोजन से पहले ही लें ताकि यह भोजन पचने में मदद कर सके।",
+            "marathi": "जेवणापूर्वीच घ्या जेणेकरून अन्न पचण्यास मदत होईल.",
+            "gujarati": "જમ્યા પહેલાં જ લો જેથી પાચનમાં મદદ મળે.",
+        },
+        "precautions": "Inform physician if you have underlying heart rhythm concerns.",
+    },
+
+    # 4. Pain & Fever
     "paracetamol": {
+        "aliases": ["paracetamol", "crocin", "dolo", "calpol", "pcm"],
         "generic": "Paracetamol / Acetaminophen",
         "default_dosage": "500 mg / 650 mg Tablet",
         "classes": "Analgesic & Antipyretic (Pain & Fever Reliever)",
@@ -244,9 +570,74 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
         },
         "precautions": "Do not combine with other cold/cough medications that already contain paracetamol.",
     },
+    "ibuprofen": {
+        "aliases": ["ibuprofen", "brufen", "advil"],
+        "generic": "Ibuprofen",
+        "default_dosage": "400 mg Tablet",
+        "classes": "NSAID (Anti-inflammatory & Pain Reliever)",
+        "purpose": {
+            "english": "Reduces swelling, inflammation, dental pain, arthritis, and muscular discomfort.",
+            "hindi": "सूजन, जोड़ों का दर्द, दांत दर्द और मांसपेशियों के दर्द को कम करता है।",
+            "marathi": "सूज, सांधेदुखी, दातदुखी आणि स्नायूंच्या वेदना कमी करण्यासाठी वापरले जाते.",
+            "gujarati": "સોજો, સાંધાનો દુખાવો, દાંતનો દુખાવો અને સ્નાયુઓના દુખાવામાં રાહત આપે છે.",
+        },
+        "when_to_take": {
+            "english": "Strictly after meals with a glass of water",
+            "hindi": "भोजन के बाद एक गिलास पानी के साथ",
+            "marathi": "जेवणानंतर एक ग्लास पाण्यासोबत",
+            "gujarati": "જમ્યા પછી એક ગ્લાસ પાણી સાથે",
+        },
+        "schedule": {
+            "english": "Twice or thrice daily after food — Never on empty stomach.",
+            "hindi": "दिन में 2 से 3 बार भोजन के बाद — कभी खाली पेट न लें।",
+            "marathi": "दिवसातून २ ते ३ वेळा जेवणानंतर — कधीही उपाशीपोटी घेऊ नका.",
+            "gujarati": "દિવસમાં 2 થી 3 વાર જમ્યા પછી — ક્યારેય ભૂખ્યા પેટે ન લો.",
+        },
+        "instructions": {
+            "english": "Always take with food or milk to safeguard stomach lining.",
+            "hindi": "पेट की सुरक्षा के लिए हमेशा भोजन या दूध के साथ लें।",
+            "marathi": "पोटाच्या संरक्षणासाठी नेहमी अन्नासोबत किंवा दुधासोबत घ्या.",
+            "gujarati": "પેટની સુરક્ષા માટે હંમેશા ખોરાક કે દૂધ સાથે લો.",
+        },
+        "precautions": "Avoid if you have history of peptic ulcers or severe kidney disease.",
+    },
+    "aceclofenac": {
+        "aliases": ["aceclofenac", "zerodol", "hifenac"],
+        "generic": "Aceclofenac",
+        "default_dosage": "100 mg Tablet",
+        "classes": "NSAID (Pain & Joint Inflammation Reliever)",
+        "purpose": {
+            "english": "Relieves acute pain and inflammation in arthritis, backache, and sports injuries.",
+            "hindi": "गठिया, पीठ दर्द, और चोट के तेज दर्द व सूजन से राहत दिलाता है।",
+            "marathi": "संधिवात, पाठदुखी आणि दुखापतीच्या तीव्र वेदना व सूज कमी करते.",
+            "gujarati": "સાંધાનો દુખાવો, કમરનો દુખાવો અને સોજો ઘટાડવામાં ઝડપી રાહત આપે છે.",
+        },
+        "when_to_take": {
+            "english": "Twice daily after meals (Morning & Night)",
+            "hindi": "भोजन के बाद दिन में दो बार (सुबह और रात)",
+            "marathi": "जेवणानंतर दिवसातून दोन वेळा (सकाळी आणि रात्री)",
+            "gujarati": "જમ્યા પછી દિવસમાં બે વાર (સવાર અને સાંજ)",
+        },
+        "schedule": {
+            "english": "Twice daily — Strictly after breakfast and dinner.",
+            "hindi": "दिन में दो बार — नाश्ते और रात के खाने के बाद लें।",
+            "marathi": "दिवसातून दोन वेळा — नाश्त्यानंतर आणि जेवणानंतर घ्या.",
+            "gujarati": "દિવસમાં બે વાર — નાસ્તા અને જમ્યા પછી લો.",
+        },
+        "instructions": {
+            "english": "Drink adequate water. Can be combined with an antacid (e.g. Pantoprazole) if advised.",
+            "hindi": "भरपूर पानी पिएं। एसिडिटी से बचने के लिए एंटासिड के साथ ले सकते हैं।",
+            "marathi": "पुरेसे पाणी प्या. ॲसिडिटी टाळण्यासाठी गॅसच्या गोळीसोबत घेण्याचा सल्ला दिला जातो.",
+            "gujarati": "પૂરતું પાણી પીવો. એસિડિટીથી બચવા માટે એન્ટાસિડ સાથે લઈ શકાય.",
+        },
+        "precautions": "Take for the shortest duration necessary for pain relief.",
+    },
+
+    # 5. Antibiotics
     "amoxicillin": {
-        "generic": "Amoxicillin / Amoxicillin + Potassium Clavulanate",
-        "default_dosage": "500 mg / 625 mg Tablet",
+        "aliases": ["amoxicillin", "mox", "novamox"],
+        "generic": "Amoxicillin",
+        "default_dosage": "500 mg Capsule / Tablet",
         "classes": "Antibiotic (Penicillin group)",
         "purpose": {
             "english": "Treats bacterial infections of throat, chest, ear, sinus, and urinary tract.",
@@ -274,7 +665,39 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
         },
         "precautions": "Inform doctor immediately if you develop skin rash, swelling, or severe watery diarrhea.",
     },
+    "augmentin": {
+        "aliases": ["augmentin", "amoxyclav", "moxikind-cv", "clavulanate"],
+        "generic": "Amoxicillin + Potassium Clavulanate",
+        "default_dosage": "625 mg Tablet",
+        "classes": "Broad-spectrum Antibiotic",
+        "purpose": {
+            "english": "Overcomes bacterial antibiotic resistance to treat resistant respiratory, skin, and dental infections.",
+            "hindi": "प्रतिरोधी बैक्टीरिया को नष्ट करके फेफड़ों, त्वचा, दांत और कान के गंभीर संक्रमण को ठीक करता है।",
+            "marathi": "प्रतिकार करणाऱ्या जिवाणूंचा नाश करून फुफ्फुसे, त्वचा आणि दातांच्या संसर्गावर मात करते.",
+            "gujarati": "ફેફસાં, ચામડી, દાંત અને કાનના ગંભીર બેક્ટેરિયલ ઇન્ફેક્શનને અસરકારક રીતે મટાડે છે.",
+        },
+        "when_to_take": {
+            "english": "At the start of a meal with water (Twice daily)",
+            "hindi": "भोजन शुरू करते समय पानी के साथ (दिन में दो बार)",
+            "marathi": "जेवण सुरू करताना पाण्यासोबत (दिवसातून दोन वेळा)",
+            "gujarati": "જમવાની શરૂઆતમાં પાણી સાથે (દિવસમાં બે વાર)",
+        },
+        "schedule": {
+            "english": "Twice daily (Every 12 hours) — Take at the start of a meal to optimize absorption and reduce stomach upset.",
+            "hindi": "दिन में दो बार (हर 12 घंटे में) — पेट की खराबी से बचने के लिए भोजन के आरंभ में लें।",
+            "marathi": "दिवसातून दोन वेळा (दर १२ तासांनी) — पोटाचा त्रास टाळण्यासाठी जेवणाच्या सुरुवातीला घ्या.",
+            "gujarati": "દિવસમાં બે વાર (દર 12 કલાકે) — પેટની તકલીફ ટાળવા ભોજનની શરૂઆતમાં લો.",
+        },
+        "instructions": {
+            "english": "Must complete the full prescribed course without skipping. Swallow whole.",
+            "hindi": "बिना नागा किए पूरा कोर्स अवश्य समाप्त करें। गोली पूरी निगलें।",
+            "marathi": "कोणतीही गोळी न चुकवता संपूर्ण कोर्स पूर्ण करा. गोळी पूर्ण गिळा.",
+            "gujarati": "એકપણ દિવસ ચૂક્યા વિના આખો કોર્સ પૂરો કરો. ગોળી આખી ગળી જવી.",
+        },
+        "precautions": "Probiotics or curd may help prevent mild antibiotic-associated looseness.",
+    },
     "azithromycin": {
+        "aliases": ["azithromycin", "azithral", "zithromax", "azee"],
         "generic": "Azithromycin",
         "default_dosage": "500 mg Tablet",
         "classes": "Antibiotic (Macrolide)",
@@ -304,7 +727,41 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
         },
         "precautions": "Do not take antacids containing aluminum or magnesium at the same time.",
     },
+    "cefixime": {
+        "aliases": ["cefixime", "taxim-o", "zifi", "mahacef"],
+        "generic": "Cefixime Trihydrate",
+        "default_dosage": "200 mg Tablet",
+        "classes": "Cephalosporin Antibiotic (3rd Gen)",
+        "purpose": {
+            "english": "Treats typhoid, urinary tract, ear, and throat bacterial infections.",
+            "hindi": "टाइफाइड, मूत्र मार्ग (यूटीआई), कान और गले के जीवाणु संक्रमण को ठीक करता है।",
+            "marathi": "टायफॉइड, मूत्रमार्ग, कान आणि घशाच्या संसर्गावर प्रभावी उपाय.",
+            "gujarati": "ટાઇફોઇડ, પેશાબના ઇન્ફેક્શન, કાન અને ગળાના બેક્ટેરિયલ ચેપની સારવાર કરે છે.",
+        },
+        "when_to_take": {
+            "english": "Twice daily after meals (Every 12 hours)",
+            "hindi": "भोजन के बाद दिन में दो बार (हर 12 घंटे में)",
+            "marathi": "जेवणानंतर दिवसातून दोन वेळा (दर १२ तासांनी)",
+            "gujarati": "જમ્યા પછી દિવસમાં બે વાર (દર 12 કલાકે)",
+        },
+        "schedule": {
+            "english": "Twice daily — Taken with or after meals.",
+            "hindi": "दिन में दो बार — भोजन के बाद लें।",
+            "marathi": "दिवसातून दोन वेळा — जेवणानंतर घ्या.",
+            "gujarati": "દિવસમાં બે વાર — જમ્યા પછી લો.",
+        },
+        "instructions": {
+            "english": "Complete the full 7–14 days course as prescribed for typhoid or UTI.",
+            "hindi": "डॉक्टर द्वारा निर्धारित 7 से 14 दिनों का पूरा कोर्स समाप्त करें।",
+            "marathi": "डॉक्टरांनी सांगितलेला संपूर्ण ७ ते १४ दिवसांचा कोर्स पूर्ण करा.",
+            "gujarati": "ડૉક્ટરે લખેલો 7 થી 14 દિવસનો પૂરો કોર્સ પૂર્ણ કરો.",
+        },
+        "precautions": "Take doses spaced equally 12 hours apart for optimal blood levels.",
+    },
+
+    # 6. Respiratory & Allergy
     "levocetirizine": {
+        "aliases": ["levocetirizine", "levocet", "vozacet"],
         "generic": "Levocetirizine Dihydrochloride",
         "default_dosage": "5 mg Tablet",
         "classes": "Antihistamine (Anti-allergy)",
@@ -334,7 +791,41 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
         },
         "precautions": "Avoid alcohol consumption while on antihistamine medication.",
     },
+    "montelukast": {
+        "aliases": ["montelukast", "montair", "telekast", "singulair"],
+        "generic": "Montelukast Sodium (often + Levocetirizine)",
+        "default_dosage": "10 mg Tablet",
+        "classes": "Leukotriene Receptor Antagonist (Anti-asthma / Allergy)",
+        "purpose": {
+            "english": "Prevents asthma attacks, relieves allergic rhinitis, chest tightness, and chronic cough.",
+            "hindi": "दमा (अस्थमा) के हमलों को रोकता है, सांस की नली की सूजन कम करता है और पुरानी खांसी में आराम देता है।",
+            "marathi": "दम्याचा त्रास (अस्थमा) रोखते, श्वसननलिकेची सूज कमी करते आणि खोकल्यापासून आराम देते.",
+            "gujarati": "દમ (અસ્થમા) ના હુમલા અટકાવે છે, શ્વાસનળીનો સોજો ઘટાડે છે અને ઉધરસમાં રાહત આપે છે.",
+        },
+        "when_to_take": {
+            "english": "Once daily at night (Bedtime)",
+            "hindi": "रात को सोते समय (दिन में एक बार)",
+            "marathi": "रात्री झोपताना (दिवसातून एकदा)",
+            "gujarati": "રાત્રે સૂતી વખતે (દિવસમાં એક વાર)",
+        },
+        "schedule": {
+            "english": "Once daily at Night — With or without food.",
+            "hindi": "दिन में एक बार रात को — भोजन के साथ या बिना भोजन के लें।",
+            "marathi": "दिवसातून एकदा रात्री — जेवणासोबत किंवा जेवणाशिवाय घ्या.",
+            "gujarati": "દિવસમાં એક વાર રાત્રે — જમ્યા સાથે અથવા જમ્યા વગર લો.",
+        },
+        "instructions": {
+            "english": "Take regularly every evening even when you have no active asthma symptoms.",
+            "hindi": "लक्षण न होने पर भी डॉक्टर द्वारा बताई गई अवधि तक नियमित लें।",
+            "marathi": "लक्षणे नसली तरीही डॉक्टरांनी सांगितलेल्या कालावधीपर्यंत नियमित घ्या.",
+            "gujarati": "લક્ષણો ન હોય તો પણ ડૉક્ટરની સલાહ મુજબ નિયમિત લો.",
+        },
+        "precautions": "This is a preventive medication and does not treat sudden acute breathlessness attacks.",
+    },
+
+    # 7. Thyroid
     "levothyroxine": {
+        "aliases": ["levothyroxine", "thyronorm", "eltroxin", "synthroid"],
         "generic": "Levothyroxine Sodium",
         "default_dosage": "25 / 50 / 100 mcg Tablet",
         "classes": "Thyroid Hormone Replacement",
@@ -363,6 +854,101 @@ CLINICAL_DRUG_KNOWLEDGE_BASE: Dict[str, Dict[str, any]] = {
             "gujarati": "માત્ર સાદા પાણી સાથે લો. દૂધ, ચા અથવા કેલ્શિયમ/આયર્નની ગોળીઓ સાથે ન લો.",
         },
         "precautions": "Requires routine TSH blood tests every 3–6 months to calibrate the correct dose.",
+    },
+
+    # 8. Vitamins & Minerals
+    "cholecalciferol": {
+        "aliases": ["cholecalciferol", "vitamin d3", "calcirol", "d3 60k"],
+        "generic": "Cholecalciferol (Vitamin D3)",
+        "default_dosage": "60,000 IU Capsule / Sachet",
+        "classes": "Vitamin Supplement (Bone & Immunity)",
+        "purpose": {
+            "english": "Boosts low Vitamin D levels, improves calcium absorption, and strengthens bones and immunity.",
+            "hindi": "विटामिन डी की कमी पूरी करता है, हड्डियों को मजबूत बनाता है और रोग प्रतिरोधक क्षमता बढ़ाता है।",
+            "marathi": "व्हिटॅमिन डी ची कमतरता भरून काढते, हाडे मजबूत करते आणि रोगप्रतिकारक शक्ती वाढवते.",
+            "gujarati": "વિટામિન ડી3 ની ઉણપ પૂરી કરે છે, હાડકાં મજબૂત કરે છે અને રોગપ્રતિકારક શક્તિ વધારે છે.",
+        },
+        "when_to_take": {
+            "english": "Once weekly with a glass of milk after a meal",
+            "hindi": "सप्ताह में एक बार भोजन के बाद दूध के साथ",
+            "marathi": "आठवड्यातून एकदा जेवणानंतर दुधासोबत",
+            "gujarati": "અઠવાડિયામાં એક વાર જમ્યા પછી દૂધ સાથે",
+        },
+        "schedule": {
+            "english": "Once weekly — Taken with milk or after a meal containing fat for best absorption.",
+            "hindi": "सप्ताह में एक बार — अच्छे अवशोषण के लिए भोजन के बाद दूध के साथ लें।",
+            "marathi": "आठवड्यातून एकदा — चांगल्या परिणामासाठी जेवणानंतर दुधासोबत घ्या.",
+            "gujarati": "અઠવાડિયામાં એક વાર — વધુ સારી અસર માટે જમ્યા પછી દૂધ સાથે લો.",
+        },
+        "instructions": {
+            "english": "Choose a fixed day of the week (e.g. Every Sunday) to ensure consistency.",
+            "hindi": "सप्ताह का एक निश्चित दिन (जैसे हर रविवार) तय करें ताकि भूल न हो।",
+            "marathi": "आठवड्यातील एक ठराविक दिवस (उदा. दर रविवारी) ठरवून नियमित घ्या.",
+            "gujarati": "અઠવાડિયાનો એક નક્કી દિવસ (જેમ કે દર રવિવારે) રાખીને નિયમિત લો.",
+        },
+        "precautions": "Do not take daily unless specifically instructed by your physician.",
+    },
+    "shelcal": {
+        "aliases": ["shelcal", "calcium", "cipcal"],
+        "generic": "Calcium Carbonate + Vitamin D3",
+        "default_dosage": "500 mg Tablet",
+        "classes": "Mineral Supplement",
+        "purpose": {
+            "english": "Strengthens bones, teeth, and prevents osteopenia or osteoporosis.",
+            "hindi": "हड्डियों और दांतों को मजबूत बनाता है तथा ऑस्टियोपोरोसिस से बचाता है।",
+            "marathi": "हाडे आणि दात मजबूत करते तसेच हाडे ठिसूळ होण्यापासून रोखते.",
+            "gujarati": "હાડકાં અને દાંત મજબૂત કરે છે અને ઓસ્ટિઓપોરોસિસથી બચાવે છે.",
+        },
+        "when_to_take": {
+            "english": "Once daily after meals with water",
+            "hindi": "दिन में एक बार भोजन के बाद पानी के साथ",
+            "marathi": "दिवसातून एकदा जेवणानंतर पाण्यासोबत",
+            "gujarati": "દિવસમાં એક વાર જમ્યા પછી પાણી સાથે",
+        },
+        "schedule": {
+            "english": "Once daily — Taken after lunch or dinner.",
+            "hindi": "दिन में एक बार — दोपहर या रात के भोजन के बाद लें।",
+            "marathi": "दिवसातून एकदा — दुपारच्या किंवा रात्रीच्या जेवणानंतर घ्या.",
+            "gujarati": "દિવસમાં એક વાર — બપોરના અથવા રાત્રિના ભોજન પછી લો.",
+        },
+        "instructions": {
+            "english": "Take at least 2 hours apart from thyroid medications or iron supplements.",
+            "hindi": "थायरॉयड की दवा या आयरन की गोली से कम से कम 2 घंटे का अंतर रखें।",
+            "marathi": "थायरॉईडचे औषध किंवा लोहाच्या (आयर्न) गोळ्यांपासून किमान २ तासांचे अंतर ठेवा.",
+            "gujarati": "થાઇરોઇડની દવા કે આયર્નની ગોળીઓથી ઓછામાં ઓછું 2 કલાકનું અંતર રાખો.",
+        },
+        "precautions": "Drink adequate water to prevent kidney stone formation.",
+    },
+    "neurobion": {
+        "aliases": ["neurobion", "becosules", "b-complex", "b complex", "cobalamin"],
+        "generic": "Vitamin B-Complex (B1, B6, B12)",
+        "default_dosage": "1 Tablet / Capsule daily",
+        "classes": "Nutritional / Nerve Supplement",
+        "purpose": {
+            "english": "Nourishes nerve function, relieves burning sensation in hands/feet, and reduces mouth ulcers.",
+            "hindi": "नसों के स्वास्थ्य में सुधार करता है, हाथ-पैरों की झनझनाहट कम करता है और मुंह के छालों में आराम देता है।",
+            "marathi": "मज्जातंतूंच्या (नसांच्या) कार्याला चालना देते, हात-पायांची मुंग्या येणे कमी करते आणि तोंडातील अल्सर बरे करते.",
+            "gujarati": "ચેતાતંત્રને સ્વસ્થ રાખે છે, હાથ-પગમાં ખાલી ચડવી ઓછી કરે છે અને મોંના ચાંદા મટાડે છે.",
+        },
+        "when_to_take": {
+            "english": "Once daily after breakfast or lunch",
+            "hindi": "दिन में एक बार नाश्ते या दोपहर के भोजन के बाद",
+            "marathi": "दिवसातून एकदा नाश्त्यानंतर किंवा दुपारच्या जेवणानंतर",
+            "gujarati": "દિવસમાં એક વાર નાસ્તા કે બપોરના ભોજન પછી",
+        },
+        "schedule": {
+            "english": "Once daily — After meals.",
+            "hindi": "दिन में एक बार — भोजन के बाद लें।",
+            "marathi": "दिवसातून एकदा — जेवणानंतर घ्या.",
+            "gujarati": "દિવસમાં એક વાર — જમ્યા પછી લો.",
+        },
+        "instructions": {
+            "english": "May cause harmless bright yellow discoloration of urine.",
+            "hindi": "पेशाब का रंग हल्का पीला हो सकता है जो पूरी तरह सामान्य और हानिरहित है।",
+            "marathi": "लघवीचा रंग पिवळसर होऊ शकतो, हे सामान्य आणि निरुपद्रवी आहे.",
+            "gujarati": "પેશાબનો રંગ પીળો થઈ શકે છે, જે સામાન્ય છે અને ચિંતા કરવાની જરૂર નથી.",
+        },
+        "precautions": "Take regularly with meals for optimum nutritional absorption.",
     },
 }
 
@@ -421,17 +1007,207 @@ QUESTIONS_FOR_DOCTOR_TEMPLATES = {
 class PrescriptionService:
     """Service class for parsing prescriptions and generating structured medicine explanations."""
 
-    @staticmethod
-    def _extract_medicine_names(text: str) -> List[str]:
-        """Extract candidate medication lines from raw text."""
+    DOSAGE_PATTERN = re.compile(
+        r"\b(\d+(?:\.\d+)?\s*(?:mg|mcg|ml|g|gm|iu|units?)|(?:\d+)\s*(?:tablets?|tabs?|capsules?|caps?|drops?|puffs?|tsp|tbsp))\b",
+        re.IGNORECASE,
+    )
+
+    SCHEDULE_PATTERN = re.compile(
+        r"(\b[0-2]\s*-\s*[0-2]\s*-\s*[0-2]\b|"
+        r"\b(?:once|twice|thrice|three times)\s+daily\b|"
+        r"\b(?:before|after)\s+(?:meals?|food|breakfast|dinner|lunch)\b|"
+        r"\b(?:empty stomach|at bedtime|at night|in morning|morning|evening|night|sos|od|bd|bid|tds|tid|qid|hs)\b)",
+        re.IGNORECASE,
+    )
+
+    HEADER_PATTERN = re.compile(
+        r"^(?:dr[\.\s]|doctor\b|patient\b|pt[\.\s]|name\s*:|age\s*:|gender\s*:|sex\s*:|date\s*:|reg(?:\s*no)?[\.\s:]|opd\b|ipd\b)|"
+        r"\b(?:clinic|hospital|dispensary|nursing\s+home|healthcare|mbbs|bams|bhms)\b",
+        re.IGNORECASE,
+    )
+
+    RX_HEADER_PATTERN = re.compile(r"^rx(?:\s*\(.*?\))?[:\s]*$", re.IGNORECASE)
+
+    ADVICE_START_PATTERN = re.compile(
+        r"^(?:advice|advise|adv|notes?|instructions?|follow[-\s]*up|review|diet|lifestyle|diagnosis|dx)\b[:\s]*(.*)",
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _extract_prescription_content(cls, text: str) -> Tuple[List[Dict[str, Any]], List[str]]:
+        """
+        Intelligently parse raw prescription or OCR text into candidate medicine rows
+        and extracted clinical advice/notes, filtering clinic headers and metadata.
+        """
         lines = [line.strip() for line in text.splitlines() if line.strip()]
-        candidates = []
+        candidate_items: List[Dict[str, Any]] = []
+        advice_lines: List[str] = []
+        in_advice_section = False
+
         for line in lines:
-            # Clean common medical abbreviations like Tab., Cap., Syp., Inj.
-            cleaned = re.sub(r"^(tab|cap|syp|inj|ointment|drops)\.?\s*", "", line, flags=re.IGNORECASE).strip()
-            if cleaned and len(cleaned) > 2:
-                candidates.append(cleaned)
-        return candidates
+            # 1. Filter headers and metadata
+            if cls.HEADER_PATTERN.search(line):
+                continue
+            if cls.RX_HEADER_PATTERN.match(line):
+                continue
+
+            # 2. Check for doctor advice section
+            m_adv = cls.ADVICE_START_PATTERN.match(line)
+            if m_adv:
+                in_advice_section = True
+                content = m_adv.group(1).strip()
+                if content:
+                    advice_lines.append(content)
+                continue
+
+            if in_advice_section:
+                cleaned_adv = re.sub(r"^[•\-\*\d+\.\)]\s*", "", line).strip()
+                if cleaned_adv:
+                    advice_lines.append(cleaned_adv)
+                continue
+
+            # 3. Clean medication line
+            cleaned = re.sub(r"^(?:\d+[\.\)\-:]\s*|[•\-\*]\s*)", "", line).strip()
+            cleaned = re.sub(
+                r"^(?:tab(?:let)?|cap(?:sule)?|syp(?:rup)?|inj(?:ection)?|ointment|drops|cream|gel|lotion|spray|inhaler)\.?\s*",
+                "",
+                cleaned,
+                flags=re.IGNORECASE,
+            ).strip()
+
+            if not cleaned or len(cleaned) < 2:
+                continue
+
+            # Extract dosage hint if present in line
+            dose_match = cls.DOSAGE_PATTERN.search(cleaned)
+            extracted_dose = dose_match.group(1).strip() if dose_match else None
+
+            # Extract timing hint if present in line
+            timing_matches = cls.SCHEDULE_PATTERN.findall(cleaned)
+            extracted_timing = " ".join(timing_matches).strip() if timing_matches else None
+
+            # Check if line contains illegible / ambiguous markers
+            is_ambiguous = bool(re.search(r"\?|unclear|illegible|dose unclear|unidentified", cleaned, re.IGNORECASE))
+
+            candidate_items.append({
+                "raw_line": line,
+                "cleaned_name": cleaned,
+                "extracted_dosage": extracted_dose,
+                "extracted_timing": extracted_timing,
+                "is_ambiguous": is_ambiguous,
+            })
+
+        return candidate_items, advice_lines
+
+    @classmethod
+    def _find_matching_drug(cls, query: str) -> Optional[Tuple[str, Dict[str, Any]]]:
+        """Find matching medication from the audited knowledge base using aliases."""
+        q_lower = query.lower()
+        for key, data in CLINICAL_DRUG_KNOWLEDGE_BASE.items():
+            if key in q_lower:
+                return key, data
+            for alias in data.get("aliases", []):
+                if re.search(rf"\b{re.escape(alias)}\b", q_lower):
+                    return key, data
+        return None
+
+    @classmethod
+    def _format_when_to_take(
+        cls,
+        extracted_timing: Optional[str],
+        default_dict: Dict[str, str],
+        lang: str,
+    ) -> str:
+        """Combine extracted prescription timing into patient-friendly plain language."""
+        if not extracted_timing:
+            return default_dict.get(lang, default_dict.get("english", ""))
+
+        t_lower = extracted_timing.lower()
+
+        # Localized frequency mapping
+        freq_desc = None
+        if re.search(r"\b1\s*-\s*0\s*-\s*1\b", t_lower):
+            freq_desc = {
+                "english": "Twice daily (1-0-1: Morning & Night)",
+                "hindi": "दिन में दो बार (1-0-1: सुबह और रात)",
+                "marathi": "दिवसातून दोन वेळा (1-0-1: सकाळी आणि रात्री)",
+                "gujarati": "દિવસમાં બે વાર (1-0-1: સવાર અને સાંજ)",
+            }.get(lang, "Twice daily (Morning & Night)")
+        elif re.search(r"\b1\s*-\s*0\s*-\s*0\b", t_lower):
+            freq_desc = {
+                "english": "Once daily (1-0-0: Morning)",
+                "hindi": "दिन में एक बार (1-0-0: सुबह)",
+                "marathi": "दिवसातून एकदा (1-0-0: सकाळी)",
+                "gujarati": "દિવસમાં એક વાર (1-0-0: સવારે)",
+            }.get(lang, "Once daily (Morning)")
+        elif re.search(r"\b0\s*-\s*0\s*-\s*1\b", t_lower):
+            freq_desc = {
+                "english": "Once daily at Bedtime (0-0-1: Night)",
+                "hindi": "दिन में एक बार रात को (0-0-1: सोते समय)",
+                "marathi": "दिवसातून एकदा रात्री (0-0-1: झोपताना)",
+                "gujarati": "દિવસમાં એક વાર રાત્રે (0-0-1: સૂતી વખતે)",
+            }.get(lang, "Once daily at Night")
+        elif re.search(r"\b1\s*-\s*1\s*-\s*1\b", t_lower):
+            freq_desc = {
+                "english": "Three times daily (1-1-1: Morning, Noon & Night)",
+                "hindi": "दिन में तीन बार (1-1-1: सुबह, दोपहर और रात)",
+                "marathi": "दिवसातून तीन वेळा (1-1-1: सकाळी, दुपारी आणि रात्री)",
+                "gujarati": "દિવસમાં ત્રણ વાર (1-1-1: સવાર, બપોર અને સાંજ)",
+            }.get(lang, "Three times daily")
+        elif re.search(r"\bsos\b", t_lower):
+            freq_desc = {
+                "english": "As needed (SOS) when symptoms occur",
+                "hindi": "आवश्यकतानुसार (SOS) जब लक्षण महसूस हों",
+                "marathi": "गरज असेल तेव्हा (SOS) लक्षणे जाणवल्यावर",
+                "gujarati": "જરૂર પડે ત્યારે (SOS) લક્ષણો જણાય ત્યારે",
+            }.get(lang, "As needed (SOS)")
+        elif re.search(r"\b(?:once|1 time)\s+daily\b|\bod\b", t_lower):
+            freq_desc = {
+                "english": "Once daily",
+                "hindi": "दिन में एक बार",
+                "marathi": "दिवसातून एकदा",
+                "gujarati": "દિવસમાં એક વાર",
+            }.get(lang, "Once daily")
+        elif re.search(r"\b(?:twice|2 times)\s+daily\b|\bbid\b|\bbd\b", t_lower):
+            freq_desc = {
+                "english": "Twice daily",
+                "hindi": "दिन में दो बार",
+                "marathi": "दिवसातून दोन वेळा",
+                "gujarati": "દિવસમાં બે વાર",
+            }.get(lang, "Twice daily")
+
+        # Localized food relation mapping
+        food_desc = None
+        if re.search(r"\bafter\s+(?:meals?|food|breakfast|lunch|dinner)\b", t_lower):
+            food_desc = {
+                "english": "After meals",
+                "hindi": "भोजन के बाद",
+                "marathi": "जेवणानंतर",
+                "gujarati": "જમ્યા પછી",
+            }.get(lang, "After meals")
+        elif re.search(r"\bbefore\s+(?:meals?|food|breakfast|lunch|dinner)\b|\bempty\s+stomach\b", t_lower):
+            food_desc = {
+                "english": "Before meals (on empty stomach)",
+                "hindi": "भोजन से पहले (खाली पेट)",
+                "marathi": "जेवणाआधी (उपाशीपोटी)",
+                "gujarati": "જમ્યા પહેલાં (ભૂખ્યા પેટે)",
+            }.get(lang, "Before meals")
+        elif re.search(r"\bwith\s+(?:meals?|food)\b", t_lower):
+            food_desc = {
+                "english": "With meals",
+                "hindi": "भोजन के साथ",
+                "marathi": "जेवणासोबत",
+                "gujarati": "જમવાની સાથે",
+            }.get(lang, "With meals")
+
+        if freq_desc and food_desc:
+            return f"{freq_desc} - {food_desc}"
+        if freq_desc:
+            return freq_desc
+        if food_desc:
+            return food_desc
+
+        return default_dict.get(lang, default_dict.get("english", extracted_timing))
 
     @classmethod
     def _explain_with_gemini(
@@ -570,15 +1346,36 @@ class PrescriptionService:
         if lang not in ["english", "hindi", "marathi", "gujarati"]:
             lang = "english"
 
-        # Determine target medicine items
-        target_medicines: List[str] = []
-        if request.medicines:
-            target_medicines = [m.strip() for m in request.medicines if m.strip()]
-        elif request.prescription_text:
-            target_medicines = cls._extract_medicine_names(request.prescription_text)
+        extracted_advice: List[str] = []
+        candidate_items: List[Dict[str, Any]] = []
 
-        if not target_medicines:
-            target_medicines = ["General Prescription"]
+        if request.medicines:
+            for m in request.medicines:
+                if not m or not m.strip():
+                    continue
+                cleaned = m.strip()
+                dose_match = cls.DOSAGE_PATTERN.search(cleaned)
+                timing_matches = cls.SCHEDULE_PATTERN.findall(cleaned)
+                candidate_items.append({
+                    "raw_line": cleaned,
+                    "cleaned_name": cleaned,
+                    "extracted_dosage": dose_match.group(1).strip() if dose_match else None,
+                    "extracted_timing": " ".join(timing_matches).strip() if timing_matches else None,
+                    "is_ambiguous": bool(re.search(r"\?|unclear|illegible|dose unclear|unidentified", cleaned, re.IGNORECASE)),
+                })
+        elif request.prescription_text and request.prescription_text.strip():
+            candidate_items, extracted_advice = cls._extract_prescription_content(request.prescription_text)
+
+        if not candidate_items:
+            candidate_items = [{
+                "raw_line": "General Prescription",
+                "cleaned_name": "General Prescription",
+                "extracted_dosage": "As prescribed",
+                "extracted_timing": None,
+                "is_ambiguous": True,
+            }]
+
+        target_medicines = [item["cleaned_name"] for item in candidate_items]
 
         # 1. Attempt Gemini AI integration if configured
         gemini_result = cls._explain_with_gemini(request, target_medicines, lang)
@@ -588,28 +1385,37 @@ class PrescriptionService:
         # 2. Audited clinical pharmaceutical knowledge base fallback
         explained_items: List[PrescribedMedicineItem] = []
 
-        for med in target_medicines:
-            med_lower = med.lower()
-            matched_key = None
-            for key in CLINICAL_DRUG_KNOWLEDGE_BASE:
-                if key in med_lower:
-                    matched_key = key
-                    break
+        for item in candidate_items:
+            cleaned_line = item["cleaned_name"]
+            extracted_dose = item["extracted_dosage"]
+            extracted_timing = item["extracted_timing"]
+            is_ambiguous = item["is_ambiguous"]
 
-            if matched_key:
-                info = CLINICAL_DRUG_KNOWLEDGE_BASE[matched_key]
-                when_take_dict = info.get("when_to_take", {})
-                when_to_take_str = when_take_dict.get(lang, when_take_dict.get("english", info["schedule"].get(lang, info["schedule"]["english"])))
+            match_result = cls._find_matching_drug(cleaned_line)
+
+            if match_result and not is_ambiguous:
+                drug_key, info = match_result
+                dosage_str = extracted_dose if extracted_dose else info["default_dosage"]
+                when_to_take_str = cls._format_when_to_take(extracted_timing, info.get("when_to_take", {}), lang)
+                schedule_str = info["schedule"].get(lang, info["schedule"]["english"])
+
+                # Clean display medicine name
+                display_name = cleaned_line.title()
+                # If the line was very long due to instructions, trim to concise title
+                if len(display_name.split()) > 3 and drug_key.title() in display_name:
+                    display_name = drug_key.title()
+                    if extracted_dose:
+                        display_name = f"{display_name} {extracted_dose}"
 
                 explained_items.append(
                     PrescribedMedicineItem(
-                        name=med.title(),
-                        medicine_name=med.title(),
+                        name=display_name,
+                        medicine_name=display_name,
                         generic_name=info["generic"],
-                        dosage=info["default_dosage"],
+                        dosage=dosage_str,
                         purpose=info["purpose"].get(lang, info["purpose"]["english"]),
                         when_to_take=when_to_take_str,
-                        schedule=info["schedule"].get(lang, info["schedule"]["english"]),
+                        schedule=schedule_str,
                         instructions=info["instructions"].get(lang, info["instructions"]["english"]),
                         precautions=info.get("precautions"),
                         needs_confirmation=False,
@@ -617,7 +1423,7 @@ class PrescriptionService:
                     )
                 )
             else:
-                # Fallback for uncatalogued or ambiguous medicines (flagged for safety)
+                # Fallback for uncatalogued or ambiguous medications (flagged for safety)
                 if lang == "hindi":
                     purpose = "चिकित्सक द्वारा आपकी स्थिति के उपचार हेतु निर्धारित विशेष औषधि।"
                     schedule = "दिन में 1 या 2 बार — डॉक्टर के निर्देशानुसार भोजन के बाद लें।"
@@ -639,12 +1445,17 @@ class PrescriptionService:
                     instructions = "Swallow with plain water. Complete the entire duration prescribed by your doctor."
                     when_to_take_str = "As advised by doctor or pharmacist (confirm timing before taking)"
 
+                if extracted_timing:
+                    when_to_take_str = f"{extracted_timing} (confirm timing with pharmacist)"
+
+                dosage_str = extracted_dose if extracted_dose else "As advised by doctor"
+
                 explained_items.append(
                     PrescribedMedicineItem(
-                        name=med.title(),
-                        medicine_name=med.title(),
+                        name=cleaned_line.title(),
+                        medicine_name=cleaned_line.title(),
                         generic_name="Prescribed Medication",
-                        dosage="As advised by doctor",
+                        dosage=dosage_str,
                         purpose=purpose,
                         when_to_take=when_to_take_str,
                         schedule=schedule,
@@ -661,8 +1472,13 @@ class PrescriptionService:
         general_guidance = GENERAL_GUIDANCE_TEMPLATES.get(lang, GENERAL_GUIDANCE_TEMPLATES["english"])
         questions = QUESTIONS_FOR_DOCTOR_TEMPLATES.get(lang, QUESTIONS_FOR_DOCTOR_TEMPLATES["english"])
 
+        if extracted_advice:
+            doctor_notes_str = "Doctor Advice: " + "; ".join(extracted_advice)
+        else:
+            doctor_notes_str = "Prescription reviewed and structured for patient understanding."
+
         return PrescriptionExplainResponse(
-            doctor_notes="Prescription reviewed and structured for patient understanding.",
+            doctor_notes=doctor_notes_str,
             medicines=explained_items,
             general_guidance=general_guidance,
             questions_for_doctor=questions,

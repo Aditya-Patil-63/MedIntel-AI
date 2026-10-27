@@ -172,5 +172,162 @@ void main() {
       expect(find.text('Infection (Antibiotics)'), findsOneWidget);
       expect(find.text('Handwritten (Safety Flag)'), findsOneWidget);
     });
+
+    testWidgets('tapping preset loads prescription text into field',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RepositoryProvider<ApiService>.value(
+            value: mockApiService,
+            child: const PrescriptionExplainerScreen(),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Prescription Text'));
+      await tester.pumpAndSettle();
+
+      // Tap preset 1
+      await tester.tap(find.text('Chronic (BP/Diabetes)'));
+      await tester.pumpAndSettle();
+
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.controller?.text, contains('Metformin 500mg'));
+      expect(textField.controller?.text, contains('Amlodipine 5mg'));
+    });
+
+    testWidgets(
+        'submitting prescription renders structured 4-column table, safety banner, and doctor notes',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      const mockResponse = PrescriptionExplainResponse(
+        doctorNotes: 'Doctor Advice: Low salt diet and brisk walk daily',
+        medicines: [
+          PrescribedMedicineItem(
+            name: 'Metformin 500mg',
+            medicineName: 'Metformin 500mg',
+            genericName: 'Metformin Hydrochloride',
+            dosage: '500 mg',
+            purpose: 'Controls blood sugar levels in type 2 diabetes',
+            whenToTake: 'Twice daily after meals',
+            schedule: 'Twice daily with meals',
+            instructions: 'Swallow whole with water',
+            needsConfirmation: false,
+          ),
+          PrescribedMedicineItem(
+            name: 'UnidentifiedMed? 2ml',
+            medicineName: 'UnidentifiedMed? 2ml',
+            genericName: 'Prescribed Medication',
+            dosage: '2 ml',
+            purpose: 'Medication prescribed by your physician',
+            whenToTake: 'As advised by doctor or pharmacist',
+            schedule: 'As directed',
+            instructions: 'Consult doctor',
+            needsConfirmation: true,
+            confidenceNote: 'Please confirm with pharmacist',
+          ),
+        ],
+        generalGuidance: 'Take medicines with plain water daily.',
+        questionsForDoctor: ['How long should I take this medication?'],
+        language: 'english',
+        disclaimer:
+            'This explanation is for educational purposes only. Gemini-generated information must NOT override doctor instructions.',
+      );
+
+      when(() => mockApiService.explainPrescription(any()))
+          .thenAnswer((_) async => mockResponse);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RepositoryProvider<ApiService>.value(
+            value: mockApiService,
+            child: const PrescriptionExplainerScreen(),
+          ),
+        ),
+      );
+
+      // Switch to text tab and select preset
+      await tester.tap(find.text('Prescription Text'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chronic (BP/Diabetes)'));
+      await tester.pumpAndSettle();
+
+      // Tap explain button
+      await tester.ensureVisible(find.text('Explain Prescription (Objective 2)'));
+      await tester.tap(find.text('Explain Prescription (Objective 2)'));
+      await tester.pumpAndSettle();
+
+      // Verify 4 exact table columns exist
+      expect(find.text('Medicine Name'), findsOneWidget);
+      expect(find.text('Purpose'), findsOneWidget);
+      expect(find.text('Dosage'), findsOneWidget);
+      expect(find.text('When to Take'), findsOneWidget);
+
+      // Verify row values
+      expect(find.text('Metformin 500mg'), findsOneWidget);
+      expect(find.text('Controls blood sugar levels in type 2 diabetes'),
+          findsOneWidget);
+      expect(find.text('500 mg'), findsOneWidget);
+      expect(find.text('Twice daily after meals'), findsOneWidget);
+
+      // Verify safety confirmation flag badge
+      expect(find.text('⚠️ Confirm with Pharmacist'), findsOneWidget);
+
+      // Verify doctor notes card
+      expect(find.text('Doctor Notes & Clinical Advice'), findsOneWidget);
+      expect(
+          find.text('Doctor Advice: Low salt diet and brisk walk daily'),
+          findsOneWidget);
+
+      // Verify safety disclaimer banner
+      expect(
+          find.text('Important Safety & Clinical Guidance'), findsOneWidget);
+      expect(
+          find.textContaining('Gemini-generated information must NOT override'),
+          findsOneWidget);
+
+      // Verify questions for doctor card
+      expect(find.text('Questions to Ask Your Doctor or Pharmacist'),
+          findsOneWidget);
+      expect(find.text('How long should I take this medication?'),
+          findsOneWidget);
+    });
+
+    testWidgets('error state displays failure card', (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      when(() => mockApiService.explainPrescription(any()))
+          .thenThrow(Exception('Server connection failed: 500'));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RepositoryProvider<ApiService>.value(
+            value: mockApiService,
+            child: const PrescriptionExplainerScreen(),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Prescription Text'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chronic (BP/Diabetes)'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Explain Prescription (Objective 2)'));
+      await tester.tap(find.text('Explain Prescription (Objective 2)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Unable to Process Prescription'), findsOneWidget);
+      expect(find.textContaining('Server connection failed'), findsOneWidget);
+    });
   });
 }

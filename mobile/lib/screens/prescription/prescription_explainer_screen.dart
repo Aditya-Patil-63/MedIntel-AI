@@ -587,6 +587,14 @@ class _PrescriptionExplainerViewState extends State<_PrescriptionExplainerView>
         ),
         const SizedBox(height: 12),
 
+        // Doctor Notes / Clinical Advice (if available)
+        if (response.doctorNotes != null &&
+            response.doctorNotes!.isNotEmpty &&
+            !response.doctorNotes!.toLowerCase().contains('prescriptions reviewed and structured')) ...[
+          _buildDoctorNotesCard(response.doctorNotes!),
+          const SizedBox(height: 12),
+        ],
+
         // 4-Column Structured Table
         _buildStructuredTable(response.medicines),
         const SizedBox(height: 16),
@@ -604,6 +612,50 @@ class _PrescriptionExplainerViewState extends State<_PrescriptionExplainerView>
         if (response.generalGuidance.isNotEmpty)
           _buildGuidanceCard(response.generalGuidance),
       ],
+    );
+  }
+
+  Widget _buildDoctorNotesCard(String doctorNotes) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBBF7D0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.medical_information_outlined,
+              color: Color(0xFF16A34A), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Doctor Notes & Clinical Advice',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF15803D),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  doctorNotes,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF166534),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

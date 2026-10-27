@@ -141,3 +141,163 @@ class TestPrescriptionExplainer:
         assert med["when_to_take"] is not None
         assert med["needs_confirmation"] is True
         assert "pharmacist" in med["confidence_note"].lower() or "doctor" in med["confidence_note"].lower()
+
+    def test_prescription_header_and_doctor_advice_filtering(self, client: TestClient):
+        """Verify clinic headers, doctor name, and patient info are filtered and advice is captured."""
+        prescription_with_headers = (
+            "Dr. Rajesh Sharma, MD\n"
+            "Apollo Clinic, Mumbai\n"
+            "Date: 27/10/2026\n"
+            "Patient: Ramesh Kumar, Age: 52\n"
+            "Rx\n"
+            "1. Tab. Metformin 500mg 1-0-1 after food\n"
+            "2. Tab. Telmisartan 40mg 1-0-0 morning\n"
+            "Advice:\n"
+            "- Low salt diet and brisk walk\n"
+            "- Review in 15 days\n"
+        )
+        res = client.post(
+            "/api/v1/prescriptions/explain",
+            json={"prescription_text": prescription_with_headers, "language": "english"},
+        )
+        assert res.status_code == 200
+        data = res.json()
+
+        # Only the 2 actual medications should be in the medicines table
+        assert len(data["medicines"]) == 2
+        med_names = [m["name"].lower() for m in data["medicines"]]
+        assert any("metformin" in name for name in med_names)
+        assert any("telmisartan" in name for name in med_names)
+        assert not any("apollo" in name for name in med_names)
+        assert not any("ramesh" in name for name in med_names)
+
+        # Advice should be extracted into doctor notes
+        assert "doctor advice" in data["doctor_notes"].lower()
+        assert "low salt" in data["doctor_notes"].lower()
+
+    def test_dosage_extraction_from_line(self, client: TestClient):
+        """Verify explicit dosage quantities (e.g. 1000mg, 650mg, 2 ml, 1 tablet) are extracted."""
+        payload = {
+            "medicines": [
+                "Tab. Metformin 1000mg",
+                "Syrup Paracetamol 5ml",
+                "Tab. Atorvastatin 40mg",
+            ],
+            "language": "english",
+        }
+        res = client.post("/api/v1/prescriptions/explain", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+
+        assert len(data["medicines"]) == 3
+        # 1000mg extracted
+        assert "1000" in data["medicines"][0]["dosage"]
+        # 5ml extracted
+        assert "5ml" in data["medicines"][1]["dosage"] or "5 ml" in data["medicines"][1]["dosage"]
+        # 40mg extracted
+        assert "40" in data["medicines"][2]["dosage"]
+
+    def test_timing_schedule_patterns(self, client: TestClient):
+        """Verify dosage timing codes (1-0-1, 1-0-0, 0-0-1, SOS) are formatted clearly for patients."""
+        payload = {
+            "medicines": [
+                "Tab. Metformin 500mg 1-0-1 after food",
+                "Tab. Amlodipine 5mg 1-0-0 morning",
+                "Tab. Atorvastatin 20mg 0-0-1 night",
+                "Tab. Paracetamol 650mg SOS",
+            ],
+            "language": "english",
+        }
+        res = client.post("/api/v1/prescriptions/explain", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+
+        # 1-0-1 -> Twice daily
+        assert "twice" in data["medicines"][0]["when_to_take"].lower() or "1-0-1" in data["medicines"][0]["when_to_take"]
+        # 1-0-0 -> Once daily morning
+        assert "once" in data["medicines"][1]["when_to_take"].lower() or "1-0-0" in data["medicines"][1]["when_to_take"]
+        # 0-0-1 -> Bedtime / Night
+        assert "night" in data["medicines"][2]["when_to_take"].lower() or "bedtime" in data["medicines"][2]["when_to_take"].lower()
+        # SOS -> As needed
+        assert "sos" in data["medicines"][3]["when_to_take"].lower() or "as needed" in data["medicines"][3]["when_to_take"].lower()
+
+    def test_ambiguous_or_unclear_handwriting_flags_confirmation(self, client: TestClient):
+        """Verify ambiguous handwriting markers (? or 'unclear') trigger safety confirmation flag."""
+        payload = {
+            "medicines": [
+                "Tab. Metformin 500mg",
+                "Tab. UnclearMed? 2ml dose unclear",
+            ],
+            "language": "english",
+        }
+        res = client.post("/api/v1/prescriptions/explain", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+
+        assert len(data["medicines"]) == 2
+        # Clean metformin should not need confirmation
+        assert data["medicines"][0]["needs_confirmation"] is False
+        # Ambiguous medicine must need confirmation
+        assert data["medicines"][1]["needs_confirmation"] is True
+        assert data["medicines"][1]["confidence_note"] is not None
+
+    def test_expanded_drug_catalog_brands(self, client: TestClient):
+        """Verify common outpatient brand names resolve correctly without false safety flags."""
+        brands = [
+            "Dolo 650",
+            "Augmentin 625",
+            "Telma 40",
+            "Pan 40",
+            "Shelcal 500",
+            "Thyronorm 50",
+            "Rosuvas 10",
+            "Ecosprin 75",
+        ]
+        res = client.post(
+            "/api/v1/prescriptions/explain",
+            json={"medicines": brands, "language": "english"},
+        )
+        assert res.status_code == 200
+        data = res.json()
+
+        assert len(data["medicines"]) == 8
+        for med in data["medicines"]:
+            # All 8 should be identified from knowledge base catalog
+            assert med["needs_confirmation"] is False
+            assert len(med["purpose"]) > 10
+            assert med["when_to_take"] is not None
+            assert med["dosage"] is not None
+
+    def test_empty_and_whitespace_input_safety(self, client: TestClient):
+        """Verify empty text or whitespace returns a safe fallback without crashing."""
+        res = client.post(
+            "/api/v1/prescriptions/explain",
+            json={"prescription_text": "   \n\n  ", "language": "english"},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data["medicines"]) == 1
+        assert data["medicines"][0]["needs_confirmation"] is True
+        assert data["disclaimer"] == MANDATORY_PRESCRIPTION_DISCLAIMER
+
+    def test_table_structure_guarantee(self, client: TestClient):
+        """Ensure all 4 Objective 2 table columns exist and are non-empty for every row."""
+        payload = {
+            "medicines": ["Metformin 500mg", "Pantoprazole 40mg"],
+            "language": "english",
+        }
+        res = client.post("/api/v1/prescriptions/explain", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+
+        for med in data["medicines"]:
+            # Column 1: Medicine Name
+            assert med["name"] and len(med["name"].strip()) > 0
+            assert med["medicine_name"] and len(med["medicine_name"].strip()) > 0
+            # Column 2: Purpose
+            assert med["purpose"] and len(med["purpose"].strip()) > 0
+            # Column 3: Dosage
+            assert med["dosage"] and len(med["dosage"].strip()) > 0
+            # Column 4: When to Take
+            assert med["when_to_take"] and len(med["when_to_take"].strip()) > 0
+
