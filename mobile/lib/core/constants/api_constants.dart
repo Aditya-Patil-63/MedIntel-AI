@@ -8,13 +8,13 @@ class ApiConstants {
   /// - wifiLanUrl: Used for physical phones over the local Wi-Fi network
   static const String usbDeviceUrl = 'http://127.0.0.1:8000';
   static const String emulatorUrl = 'http://10.0.2.2:8000';
-  static const String wifiLanUrl = 'http://10.62.199.105:8000';
+  static const String wifiLanUrl = 'http://10.113.147.105:8000';
 
   /// Base URL configurable via --dart-define=API_BASE_URL=http://...
-  /// Default: 'http://10.62.199.105:8000' for physical phone over Wi-Fi LAN (no USB/ADB reverse dependency).
+  /// Default: 'http://127.0.0.1:8000' for physical phone via USB/OTG reverse port.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: wifiLanUrl,
+    defaultValue: usbDeviceUrl,
   );
 
   // Timeouts

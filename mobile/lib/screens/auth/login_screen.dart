@@ -4,7 +4,6 @@ import '../../core/theme/app_colors.dart';
 import '../../state/auth/auth_cubit.dart';
 import '../../state/auth/auth_state.dart';
 import '../../state/history/history_cubit.dart';
-import '../../widgets/server_settings_dialog.dart';
 import 'register_screen.dart';
 
 /// Clean, patient-friendly Medical Login Screen for MedIntel AI.
@@ -46,18 +45,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppColors.textSecondary),
-            tooltip: 'Server Connection',
-            onPressed: () => ServerSettingsDialog.show(context),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

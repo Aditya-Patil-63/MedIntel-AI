@@ -5,7 +5,6 @@ import '../../state/analysis/analysis_cubit.dart';
 import '../../state/document/document_cubit.dart';
 import '../../state/document/document_state.dart';
 import '../../state/verification/verification_cubit.dart';
-import '../../widgets/server_settings_dialog.dart';
 import '../prescription/prescription_explainer_screen.dart';
 import '../results/results_screen.dart';
 import '../verification/verification_screen.dart';
@@ -756,11 +755,6 @@ class UploadScreen extends StatelessWidget {
                   label: const Text('Retry Extraction'),
                   onPressed: () =>
                       context.read<DocumentCubit>().retryLastExtraction(),
-                ),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.settings_ethernet),
-                  label: const Text('Configure Connection'),
-                  onPressed: () => ServerSettingsDialog.show(context),
                 ),
                 OutlinedButton(
                   onPressed: () =>

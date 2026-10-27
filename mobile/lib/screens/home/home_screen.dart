@@ -84,25 +84,20 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: Badge(
-              isLabelVisible: true,
-              backgroundColor:
-                  _isBackendOk ? AppColors.normal : const Color(0xFFF59E0B),
-              smallSize: 8,
-              child: const Icon(Icons.settings_outlined, size: 22),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Tooltip(
+              message: _isBackendOk ? 'Backend Connected' : 'Connecting...',
+              child: Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: _isBackendOk ? AppColors.normal : const Color(0xFFF59E0B),
+                  shape: BoxShape.circle,
+                ),
+              ),
             ),
-            tooltip: _isBackendOk
-                ? 'Settings (Backend Connected)'
-                : 'Settings (Backend Offline)',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              ).then((_) => _checkServices());
-            },
           ),
-          const SizedBox(width: 4),
         ],
       ),
       body: SafeArea(
