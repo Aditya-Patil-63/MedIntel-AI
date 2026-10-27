@@ -50,6 +50,37 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  /// Authenticate or register using a Google account.
+  Future<bool> loginWithGoogle({
+    required String email,
+    String? name,
+    String? googleId,
+  }) async {
+    final cleanEmail = email.trim();
+    if (cleanEmail.isEmpty || !cleanEmail.contains('@')) {
+      emit(const AuthError('Please provide a valid Google email address.'));
+      return false;
+    }
+
+    emit(const AuthLoading(message: 'Signing in with Google...'));
+
+    try {
+      final user = await apiService.loginWithGoogle(
+        email: cleanEmail,
+        name: name,
+        googleId: googleId,
+      );
+      emit(Authenticated(user));
+      return true;
+    } on ApiException catch (e) {
+      emit(AuthError(e.message));
+      return false;
+    } catch (e) {
+      emit(AuthError('Google sign-in failed. Please verify network connection.'));
+      return false;
+    }
+  }
+
   /// Register a new user account.
   Future<bool> register({
     required String name,

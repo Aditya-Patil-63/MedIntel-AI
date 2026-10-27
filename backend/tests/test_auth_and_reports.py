@@ -202,3 +202,49 @@ def test_user_reports_isolation(client: TestClient):
     )
     assert len(bob_reports_after.json()) == 1
     assert bob_reports_after.json()[0]["document_name"] == "Bob_Lab_Results.pdf"
+
+
+def test_google_login(client: TestClient):
+    """Verify Google login auto-creates new account and logs in existing account."""
+    suffix = uuid.uuid4().hex[:8]
+    google_email = f"google_user_{suffix}@gmail.com"
+    google_id = f"gid_{suffix}"
+
+    # 1. First time Google login (auto-provisions account)
+    res1 = client.post(
+        "/api/v1/auth/google",
+        json={
+            "email": google_email,
+            "name": "Google Test User",
+            "google_id": google_id,
+            "language_preference": "english",
+        },
+    )
+    assert res1.status_code == 200
+    data1 = res1.json()
+    assert "access_token" in data1
+    token1 = data1["access_token"]
+    assert data1["user"]["email"] == google_email
+    assert data1["user"]["name"] == "Google Test User"
+
+    # 2. Access /me with token
+    me_res = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {token1}"},
+    )
+    assert me_res.status_code == 200
+    assert me_res.json()["email"] == google_email
+
+    # 3. Subsequent Google login (reuses existing account)
+    res2 = client.post(
+        "/api/v1/auth/google",
+        json={
+            "email": google_email,
+            "name": "Google Test User",
+            "google_id": google_id,
+        },
+    )
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["user"]["id"] == data1["user"]["id"]
+    assert "access_token" in data2

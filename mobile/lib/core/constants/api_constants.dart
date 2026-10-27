@@ -38,6 +38,7 @@ class ApiConstants {
   // User Authentication & Reports
   static const String authRegister = '/api/v1/auth/register';
   static const String authLogin = '/api/v1/auth/login';
+  static const String authGoogle = '/api/v1/auth/google';
   static const String authMe = '/api/v1/auth/me';
   static const String reports = '/api/v1/reports';
 

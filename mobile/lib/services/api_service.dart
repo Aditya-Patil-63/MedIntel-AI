@@ -79,6 +79,13 @@ abstract class ApiService {
     required String password,
   });
 
+  /// 12b. User Login via Google account
+  Future<UserModel> loginWithGoogle({
+    required String email,
+    String? name,
+    String? googleId,
+  });
+
   /// 13. Get current profile
   Future<UserModel?> getProfile();
 
@@ -399,6 +406,30 @@ class ApiServiceImpl implements ApiService {
         data: {
           'email': email.trim().toLowerCase(),
           'password': password,
+        },
+        options: Options(contentType: 'application/json'),
+      );
+      final user = UserModel.fromJson(response.data as Map<String, dynamic>);
+      setAuthToken(user.token);
+      return user;
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<UserModel> loginWithGoogle({
+    required String email,
+    String? name,
+    String? googleId,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.authGoogle,
+        data: {
+          'email': email.trim().toLowerCase(),
+          'name': name?.trim() ?? 'Google User',
+          'google_id': googleId,
         },
         options: Options(contentType: 'application/json'),
       );

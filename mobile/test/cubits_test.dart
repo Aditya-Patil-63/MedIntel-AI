@@ -231,6 +231,22 @@ class FakeApiService implements ApiService {
   }
 
   @override
+  Future<UserModel> loginWithGoogle({
+    required String email,
+    String? name,
+    String? googleId,
+  }) async {
+    final user = UserModel(
+      id: 1,
+      name: name ?? 'Test Patient',
+      email: email,
+      token: 'fake_test_jwt_token',
+    );
+    setAuthToken(user.token);
+    return user;
+  }
+
+  @override
   Future<UserModel?> getProfile() async {
     return const UserModel(
       id: 1,

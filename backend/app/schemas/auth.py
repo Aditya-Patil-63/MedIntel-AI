@@ -29,6 +29,15 @@ class UserLoginRequest(BaseModel):
     password: str = Field(..., min_length=1, description="User password")
 
 
+class GoogleLoginRequest(BaseModel):
+    """Payload for Google authentication."""
+
+    email: str = Field(..., pattern=_EMAIL_PATTERN, description="Google email address")
+    name: str = Field("Google User", min_length=1, max_length=100, description="User full name")
+    google_id: Optional[str] = Field(None, description="Optional Google user ID")
+    language_preference: Optional[str] = Field("english", description="Preferred language")
+
+
 class UserResponse(BaseModel):
     """User profile information returned upon authentication."""
 

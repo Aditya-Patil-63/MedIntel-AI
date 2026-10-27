@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.security import create_access_token, get_current_user, hash_password, verify_password
 from app.db.session import get_db
 from app.models.models import User
-from app.schemas.auth import AuthResponse, UserLoginRequest, UserRegisterRequest, UserResponse
+from app.schemas.auth import AuthResponse, GoogleLoginRequest, UserLoginRequest, UserRegisterRequest, UserResponse
 
 logger = logging.getLogger("medintel.auth")
 
@@ -77,6 +77,40 @@ def login(request: UserLoginRequest, db: Session = Depends(get_db)) -> AuthRespo
         )
 
     logger.info("User logged in successfully: id=%d, email=%s", user.id, user.email)
+
+    token = create_access_token(user_id=user.id, email=user.email)
+    return AuthResponse(
+        user=UserResponse.model_validate(user),
+        access_token=token,
+    )
+
+
+@router.post(
+    "/google",
+    response_model=AuthResponse,
+    summary="Authenticate or register user via Google account",
+)
+def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
+    """Find or automatically register a user authenticating via Google account."""
+    import secrets
+
+    normalized_email = request.email.strip().lower()
+    user = db.query(User).filter(User.email == normalized_email).first()
+
+    if not user:
+        # Register new Google authenticated user
+        user = User(
+            name=request.name.strip() or "Google User",
+            email=normalized_email,
+            hashed_password=hash_password(secrets.token_urlsafe(24)),
+            language_preference=(request.language_preference or "english").strip().lower(),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        logger.info("New user registered via Google: id=%d, email=%s", user.id, user.email)
+    else:
+        logger.info("Existing user signed in via Google: id=%d, email=%s", user.id, user.email)
 
     token = create_access_token(user_id=user.id, email=user.email)
     return AuthResponse(
