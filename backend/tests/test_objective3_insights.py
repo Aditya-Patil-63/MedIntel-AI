@@ -273,3 +273,64 @@ class TestHealthTrendsTrackingAPI:
         assert len(glucose_history) == 2
         assert glucose_history[0]["value"] == 140.0
         assert glucose_history[1]["value"] == 115.0
+
+    def test_trends_endpoint_supports_client_analysis_result_schema(self, client: TestClient):
+        """Verify trends and report storage support the Flutter AnalysisResult format."""
+        import uuid
+        user_email = f"trends_client_{uuid.uuid4().hex[:8]}@example.com"
+        password = "SecurePassword123!"
+
+        reg_res = client.post(
+            "/api/v1/auth/register",
+            json={"name": "Trends User", "email": user_email, "password": password},
+        )
+        assert reg_res.status_code == 201
+
+        login_res = client.post("/api/v1/auth/login", json={"email": user_email, "password": password})
+        assert login_res.status_code == 200
+        token = login_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Save Report using exact Flutter AnalysisResult JSON schema
+        client_report_payload = {
+            "document_name": "Lab_Report_Flutter.pdf",
+            "reference_results": [
+                {
+                    "original_test_name": "Serum Creatinine",
+                    "canonical_name": "Creatinine",
+                    "numeric_value": 1.2,
+                    "normalized_unit": "mg/dL",
+                    "classification": "NORMAL",
+                    "analysis_status": "EVALUATED",
+                    "reference_range": {
+                        "canonical_name": "Creatinine",
+                        "unit": "mg/dL",
+                        "normal_low": 0.7,
+                        "normal_high": 1.3,
+                        "source": "KDIGO 2023",
+                    },
+                },
+                {
+                    "original_test_name": "HbA1c",
+                    "canonical_name": "Glycated Hemoglobin",
+                    "numeric_value": 6.8,
+                    "normalized_unit": "%",
+                    "classification": "HIGH",
+                    "analysis_status": "EVALUATED",
+                },
+            ],
+        }
+
+        res = client.post("/api/v1/reports", json=client_report_payload, headers=headers)
+        assert res.status_code == 201
+
+        # Query trends
+        trends_res = client.get("/api/v1/reports/trends", headers=headers)
+        assert trends_res.status_code == 200
+        data = trends_res.json()
+        assert "Creatinine" in data["trends"]
+        assert data["trends"]["Creatinine"][0]["value"] == 1.2
+        assert data["trends"]["Creatinine"][0]["classification"] == "NORMAL"
+        assert "Glycated Hemoglobin" in data["trends"]
+        assert data["trends"]["Glycated Hemoglobin"][0]["value"] == 6.8
+        assert data["trends"]["Glycated Hemoglobin"][0]["classification"] == "HIGH"

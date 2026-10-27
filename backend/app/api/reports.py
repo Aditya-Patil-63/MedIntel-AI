@@ -105,18 +105,36 @@ def save_user_report(
     ref_results = payload.get("reference_results", [])
     if isinstance(ref_results, list):
         for res in ref_results:
-            if isinstance(res, dict) and "test_name" in res:
-                tr = TestResult(
-                    report_id=report.id,
-                    test_name=str(res.get("test_name", "Unknown")),
-                    test_value=float(res.get("value")) if res.get("value") is not None else None,
-                    unit=str(res.get("unit", "")) if res.get("unit") else None,
-                    reference_range_low=float(res.get("reference_low")) if res.get("reference_low") is not None else None,
-                    reference_range_high=float(res.get("reference_high")) if res.get("reference_high") is not None else None,
-                    classification=str(res.get("classification", "")).lower() or None,
-                    is_user_verified=1,
-                )
-                db.add(tr)
+            if isinstance(res, dict) and any(k in res for k in ("original_test_name", "test_name", "canonical_name")):
+                t_name = str(res.get("original_test_name") or res.get("test_name") or res.get("canonical_name", "Unknown"))
+                c_name = res.get("canonical_name")
+                val = res.get("numeric_value") if res.get("numeric_value") is not None else res.get("value")
+                
+                ref_dict = res.get("reference_range") if isinstance(res.get("reference_range"), dict) else {}
+                ref_low = ref_dict.get("normal_low") if ref_dict.get("normal_low") is not None else res.get("reference_low")
+                ref_high = ref_dict.get("normal_high") if ref_dict.get("normal_high") is not None else res.get("reference_high")
+                unit_str = res.get("normalized_unit") or res.get("unit") or ""
+                
+                raw_cls = str(res.get("classification", "")).lower().replace(" ", "_")
+                cls_val = raw_cls if raw_cls in ("low", "normal", "high", "critical") else None
+                
+                try:
+                    tr = TestResult(
+                        report_id=report.id,
+                        test_name=t_name,
+                        canonical_name=str(c_name) if c_name else None,
+                        test_value=float(val) if val is not None else None,
+                        unit=str(unit_str) if unit_str else None,
+                        reference_range_low=float(ref_low) if ref_low is not None else None,
+                        reference_range_high=float(ref_high) if ref_high is not None else None,
+                        classification=cls_val,
+                        reference_source=res.get("reference_source"),
+                        analysis_status=res.get("analysis_status"),
+                        is_user_verified=1,
+                    )
+                    db.add(tr)
+                except (ValueError, TypeError):
+                    pass
         db.commit()
 
     logger.info(
@@ -160,8 +178,8 @@ def get_user_health_trends(
                     report_id_str = data["id"]
                 ref_results = data.get("reference_results", [])
                 for res in ref_results:
-                    if isinstance(res, dict) and "test_name" in res:
-                        t_name = str(res.get("canonical_name") or res.get("test_name")).strip()
+                    if isinstance(res, dict) and any(k in res for k in ("original_test_name", "test_name", "canonical_name")):
+                        t_name = str(res.get("canonical_name") or res.get("original_test_name") or res.get("test_name")).strip()
                         val = res.get("numeric_value") or res.get("value")
                         if val is not None:
                             try:
