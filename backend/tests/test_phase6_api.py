@@ -181,6 +181,24 @@ class TestAnalyzeEdgeCases:
         assert item["analysis_status"] == "UNIT_MISMATCH"
         assert any("automatic unit conversion is not enabled" in w.lower() for w in item["warnings"])
 
+    def test_06b_platelet_count_lakhs_unit_conversion(self, client: TestClient):
+        """Verifies certified unit conversion of Lakhs/cumm to cells/uL for Indian lab reports."""
+        payload = {
+            "measurements": [
+                {"test_name": "Platelet Count", "value": 2.33, "unit": "Lakhs/Cumm"}
+            ]
+        }
+        res = client.post("/api/v1/reference/analyze", json=payload)
+        assert res.status_code == 200
+        item = res.json()["results"][0]
+        assert item["canonical_name"] == "Platelet Count"
+        assert item["numeric_value"] == 2.33
+        assert item["unit"] == "Lakhs/Cumm"
+        assert item["normalized_unit"] == "cells/uL"
+        assert item["classification"] == "NORMAL"
+        assert item["analysis_status"] == "SUCCESS"
+        assert any("converted to reference unit" in w.lower() for w in item["warnings"])
+
     def test_07_unsupported_analyte(self, client: TestClient):
         payload = {
             "measurements": [

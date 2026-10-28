@@ -66,11 +66,6 @@ class GenAIExplanationCard extends StatelessWidget {
                 _buildLanguageSelector(context),
               ],
             ),
-            const SizedBox(height: 6),
-            const Text(
-              'Synthesized from verified lab results and ML indicators.',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
             const Divider(height: 24),
             _buildBody(context),
           ],

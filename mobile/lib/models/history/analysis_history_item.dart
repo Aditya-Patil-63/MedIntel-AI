@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../core/utils/date_formatter.dart';
 import '../common/enums.dart';
 import '../genai/genai_explain_response.dart';
 import '../ml_risk/risk_prediction_response.dart';
@@ -12,6 +13,7 @@ import '../../state/analysis/analysis_state.dart';
 class AnalysisHistoryItem extends Equatable {
   final String id;
   final DateTime createdAt;
+  final DateTime? updatedAt;
   final String documentName;
   final int verifiedMeasurementCount;
   final double? patientAge;
@@ -28,6 +30,7 @@ class AnalysisHistoryItem extends Equatable {
   AnalysisHistoryItem({
     required this.id,
     required this.createdAt,
+    this.updatedAt,
     required this.documentName,
     required this.verifiedMeasurementCount,
     this.patientAge,
@@ -96,20 +99,15 @@ class AnalysisHistoryItem extends Equatable {
   bool get hasKidneyResult => kidneyRisk != null;
   bool get hasGenAiExplanation => genAiExplanation?.explanation != null;
 
-  String get formattedDate {
-    final y = createdAt.year.toString();
-    final m = createdAt.month.toString().padLeft(2, '0');
-    final d = createdAt.day.toString().padLeft(2, '0');
-    final h = createdAt.hour.toString().padLeft(2, '0');
-    final min = createdAt.minute.toString().padLeft(2, '0');
-    return '$y-$m-$d $h:$min';
-  }
+  String get formattedDate => formatHistoryTimestamp(updatedAt ?? createdAt);
 
   // --- Serialization ---
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'created_at': createdAt.toIso8601String(),
+        'type': 'report',
+        'created_at': createdAt.toUtc().toIso8601String(),
+        if (updatedAt != null) 'updated_at': updatedAt!.toUtc().toIso8601String(),
         'document_name': documentName,
         'verified_measurement_count': verifiedMeasurementCount,
         if (patientAge != null) 'patient_age': patientAge,
@@ -126,10 +124,13 @@ class AnalysisHistoryItem extends Equatable {
       };
 
   factory AnalysisHistoryItem.fromJson(Map<String, dynamic> json) {
+    final createdStr = json['created_at'] as String? ?? '';
+    final updatedStr = json['updated_at'] as String?;
+
     return AnalysisHistoryItem(
       id: json['id'] as String? ?? '',
-      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
-          DateTime.now(),
+      createdAt: DateTime.tryParse(createdStr) ?? DateTime.now(),
+      updatedAt: updatedStr != null ? DateTime.tryParse(updatedStr) : null,
       documentName: json['document_name'] as String? ?? 'Medical Report',
       verifiedMeasurementCount:
           (json['verified_measurement_count'] as num?)?.toInt() ?? 0,
@@ -167,6 +168,7 @@ class AnalysisHistoryItem extends Equatable {
   List<Object?> get props => [
         id,
         createdAt,
+        updatedAt,
         documentName,
         verifiedMeasurementCount,
         patientAge,

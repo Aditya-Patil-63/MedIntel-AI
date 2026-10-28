@@ -1,0 +1,515 @@
+{
+  "diabetes": {
+    "condition": "diabetes",
+    "candidate_name": "RandomForest_d4_s8",
+    "model_type": "RandomForestClassifier",
+    "pipeline_sha256": "ff72a814dc1ab3c6c88d108783577523960a692f4cb2fab5e2c24c2dbcde8a65",
+    "features": [
+      "Pregnancies",
+      "Glucose",
+      "BloodPressure",
+      "SkinThickness",
+      "Insulin",
+      "BMI",
+      "DiabetesPedigreeFunction",
+      "Age"
+    ],
+    "metrics_full": {
+      "total_samples": 768,
+      "true_positives": 226,
+      "false_positives": 114,
+      "true_negatives": 386,
+      "false_negatives": 42,
+      "accuracy": 0.7969,
+      "precision": 0.6647,
+      "recall": 0.8433,
+      "specificity": 0.772,
+      "f1": 0.7434,
+      "roc_auc": 0.8924,
+      "brier_score": 0.1459
+    },
+    "metrics_held_out": {
+      "total_samples": 154,
+      "true_positives": 43,
+      "false_positives": 28,
+      "true_negatives": 72,
+      "false_negatives": 11,
+      "accuracy": 0.7468,
+      "precision": 0.6056,
+      "recall": 0.7963,
+      "specificity": 0.72,
+      "f1": 0.688,
+      "roc_auc": 0.8122,
+      "brier_score": 0.176
+    },
+    "calibration_bins": [
+      {
+        "range": "[0.0, 0.2]",
+        "count": 148,
+        "mean_predicted_prob": 0.1201,
+        "observed_positive_rate": 0.0068
+      },
+      {
+        "range": "[0.2, 0.4]",
+        "count": 203,
+        "mean_predicted_prob": 0.2981,
+        "observed_positive_rate": 0.0985
+      },
+      {
+        "range": "[0.4, 0.6]",
+        "count": 176,
+        "mean_predicted_prob": 0.504,
+        "observed_positive_rate": 0.3864
+      },
+      {
+        "range": "[0.6, 0.8]",
+        "count": 170,
+        "mean_predicted_prob": 0.7057,
+        "observed_positive_rate": 0.6588
+      },
+      {
+        "range": "[0.8, 1.0]",
+        "count": 71,
+        "mean_predicted_prob": 0.83,
+        "observed_positive_rate": 0.9437
+      }
+    ],
+    "robustness": {
+      "deterministic_100_runs": true,
+      "permutation_invariant": true,
+      "missing_feature_safe": true,
+      "all_features_rejected_when_missing": "8/8"
+    },
+    "api_consistency": {
+      "endpoint": "/api/v1/ml/predict/diabetes",
+      "raw_prob": 0.7703,
+      "api_prob": 0.7703,
+      "api_band": "ELEVATED",
+      "consistent": true
+    },
+    "sample_errors": {
+      "false_positives_count": 114,
+      "false_negatives_count": 42,
+      "fp_sample_features": [
+        {
+          "Pregnancies": 10.0,
+          "Glucose": 115.0,
+          "BloodPressure": 72.0,
+          "SkinThickness": 29.0,
+          "Insulin": 125.0,
+          "BMI": 35.3,
+          "DiabetesPedigreeFunction": 0.134,
+          "Age": 29.0
+        },
+        {
+          "Pregnancies": 10.0,
+          "Glucose": 139.0,
+          "BloodPressure": 80.0,
+          "SkinThickness": 29.0,
+          "Insulin": 125.0,
+          "BMI": 27.1,
+          "DiabetesPedigreeFunction": 1.441,
+          "Age": 57.0
+        },
+        {
+          "Pregnancies": 3.0,
+          "Glucose": 126.0,
+          "BloodPressure": 88.0,
+          "SkinThickness": 41.0,
+          "Insulin": 235.0,
+          "BMI": 39.3,
+          "DiabetesPedigreeFunction": 0.704,
+          "Age": 27.0
+        }
+      ],
+      "fn_sample_features": [
+        {
+          "Pregnancies": 3.0,
+          "Glucose": 78.0,
+          "BloodPressure": 50.0,
+          "SkinThickness": 32.0,
+          "Insulin": 88.0,
+          "BMI": 31.0,
+          "DiabetesPedigreeFunction": 0.248,
+          "Age": 26.0
+        },
+        {
+          "Pregnancies": 7.0,
+          "Glucose": 107.0,
+          "BloodPressure": 74.0,
+          "SkinThickness": 29.0,
+          "Insulin": 125.0,
+          "BMI": 29.6,
+          "DiabetesPedigreeFunction": 0.254,
+          "Age": 31.0
+        },
+        {
+          "Pregnancies": 1.0,
+          "Glucose": 115.0,
+          "BloodPressure": 70.0,
+          "SkinThickness": 30.0,
+          "Insulin": 96.0,
+          "BMI": 34.6,
+          "DiabetesPedigreeFunction": 0.529,
+          "Age": 32.0
+        }
+      ]
+    }
+  },
+  "heart_disease": {
+    "condition": "heart_disease",
+    "candidate_name": "LogisticRegression_C1.0",
+    "model_type": "LogisticRegression",
+    "pipeline_sha256": "c904d3b8f8d65a68c3ef07ef42607923fc3d0f6339f8f3a7ab7a6f6ba830e274",
+    "features": [
+      "age",
+      "trestbps",
+      "chol",
+      "thalach",
+      "oldpeak",
+      "sex",
+      "fbs",
+      "exang",
+      "cp",
+      "restecg",
+      "slope",
+      "ca",
+      "thal"
+    ],
+    "metrics_full": {
+      "total_samples": 297,
+      "true_positives": 114,
+      "false_positives": 21,
+      "true_negatives": 139,
+      "false_negatives": 23,
+      "accuracy": 0.8519,
+      "precision": 0.8444,
+      "recall": 0.8321,
+      "specificity": 0.8688,
+      "f1": 0.8382,
+      "roc_auc": 0.9319,
+      "brier_score": 0.1014
+    },
+    "metrics_held_out": {
+      "total_samples": 60,
+      "true_positives": 22,
+      "false_positives": 4,
+      "true_negatives": 28,
+      "false_negatives": 6,
+      "accuracy": 0.8333,
+      "precision": 0.8462,
+      "recall": 0.7857,
+      "specificity": 0.875,
+      "f1": 0.8148,
+      "roc_auc": 0.9286,
+      "brier_score": 0.1081
+    },
+    "calibration_bins": [
+      {
+        "range": "[0.0, 0.2]",
+        "count": 98,
+        "mean_predicted_prob": 0.0711,
+        "observed_positive_rate": 0.0408
+      },
+      {
+        "range": "[0.2, 0.4]",
+        "count": 53,
+        "mean_predicted_prob": 0.2959,
+        "observed_positive_rate": 0.2075
+      },
+      {
+        "range": "[0.4, 0.6]",
+        "count": 29,
+        "mean_predicted_prob": 0.5085,
+        "observed_positive_rate": 0.4828
+      },
+      {
+        "range": "[0.6, 0.8]",
+        "count": 29,
+        "mean_predicted_prob": 0.701,
+        "observed_positive_rate": 0.8276
+      },
+      {
+        "range": "[0.8, 1.0]",
+        "count": 88,
+        "mean_predicted_prob": 0.9353,
+        "observed_positive_rate": 0.9545
+      }
+    ],
+    "robustness": {
+      "deterministic_100_runs": true,
+      "permutation_invariant": true,
+      "missing_feature_safe": true,
+      "all_features_rejected_when_missing": "13/13"
+    },
+    "api_consistency": {
+      "endpoint": "/api/v1/ml/predict/heart-disease",
+      "raw_prob": 0.3679,
+      "api_prob": 0.3679,
+      "api_band": "MODERATE",
+      "consistent": true
+    },
+    "sample_errors": {
+      "false_positives_count": 21,
+      "false_negatives_count": 23,
+      "fp_sample_features": [
+        {
+          "age": 59.0,
+          "trestbps": 135.0,
+          "chol": 234.0,
+          "thalach": 161.0,
+          "oldpeak": 0.5,
+          "sex": 1.0,
+          "fbs": 0.0,
+          "exang": 0.0,
+          "cp": 4.0,
+          "restecg": 0.0,
+          "slope": 2.0,
+          "ca": 0.0,
+          "thal": 7.0
+        },
+        {
+          "age": 65.0,
+          "trestbps": 120.0,
+          "chol": 177.0,
+          "thalach": 140.0,
+          "oldpeak": 0.4,
+          "sex": 1.0,
+          "fbs": 0.0,
+          "exang": 0.0,
+          "cp": 4.0,
+          "restecg": 0.0,
+          "slope": 1.0,
+          "ca": 0.0,
+          "thal": 7.0
+        },
+        {
+          "age": 51.0,
+          "trestbps": 125.0,
+          "chol": 213.0,
+          "thalach": 125.0,
+          "oldpeak": 1.4,
+          "sex": 1.0,
+          "fbs": 0.0,
+          "exang": 1.0,
+          "cp": 1.0,
+          "restecg": 2.0,
+          "slope": 1.0,
+          "ca": 1.0,
+          "thal": 3.0
+        }
+      ],
+      "fn_sample_features": [
+        {
+          "age": 48.0,
+          "trestbps": 110.0,
+          "chol": 229.0,
+          "thalach": 168.0,
+          "oldpeak": 1.0,
+          "sex": 1.0,
+          "fbs": 0.0,
+          "exang": 0.0,
+          "cp": 2.0,
+          "restecg": 0.0,
+          "slope": 3.0,
+          "ca": 0.0,
+          "thal": 7.0
+        },
+        {
+          "age": 58.0,
+          "trestbps": 120.0,
+          "chol": 284.0,
+          "thalach": 160.0,
+          "oldpeak": 1.8,
+          "sex": 1.0,
+          "fbs": 0.0,
+          "exang": 0.0,
+          "cp": 2.0,
+          "restecg": 2.0,
+          "slope": 2.0,
+          "ca": 0.0,
+          "thal": 3.0
+        },
+        {
+          "age": 64.0,
+          "trestbps": 140.0,
+          "chol": 335.0,
+          "thalach": 158.0,
+          "oldpeak": 0.0,
+          "sex": 1.0,
+          "fbs": 0.0,
+          "exang": 0.0,
+          "cp": 3.0,
+          "restecg": 0.0,
+          "slope": 1.0,
+          "ca": 0.0,
+          "thal": 3.0
+        }
+      ]
+    }
+  },
+  "kidney_disease": {
+    "condition": "kidney_disease",
+    "candidate_name": "LogisticRegression_C10.0",
+    "model_type": "LogisticRegression",
+    "pipeline_sha256": "b8bfe429529194c709c92a676f321004e7c66d0dcdc43e85056b4a82db5401a4",
+    "features": [
+      "age",
+      "bp",
+      "sg",
+      "al",
+      "su",
+      "bgr",
+      "bu",
+      "sc",
+      "sod",
+      "pot",
+      "hemo",
+      "pcv",
+      "wc",
+      "rc",
+      "rbc",
+      "pc",
+      "pcc",
+      "ba",
+      "htn",
+      "dm",
+      "cad",
+      "appet",
+      "pe",
+      "ane"
+    ],
+    "metrics_full": {
+      "total_samples": 400,
+      "true_positives": 248,
+      "false_positives": 0,
+      "true_negatives": 150,
+      "false_negatives": 2,
+      "accuracy": 0.995,
+      "precision": 1.0,
+      "recall": 0.992,
+      "specificity": 1.0,
+      "f1": 0.996,
+      "roc_auc": 1.0,
+      "brier_score": 0.0034
+    },
+    "metrics_held_out": {
+      "total_samples": 80,
+      "true_positives": 48,
+      "false_positives": 0,
+      "true_negatives": 30,
+      "false_negatives": 2,
+      "accuracy": 0.975,
+      "precision": 1.0,
+      "recall": 0.96,
+      "specificity": 1.0,
+      "f1": 0.9796,
+      "roc_auc": 0.9993,
+      "brier_score": 0.0127
+    },
+    "calibration_bins": [
+      {
+        "range": "[0.0, 0.2]",
+        "count": 148,
+        "mean_predicted_prob": 0.0061,
+        "observed_positive_rate": 0.0
+      },
+      {
+        "range": "[0.2, 0.4]",
+        "count": 4,
+        "mean_predicted_prob": 0.3132,
+        "observed_positive_rate": 0.5
+      },
+      {
+        "range": "[0.4, 0.6]",
+        "count": 0,
+        "mean_predicted_prob": 0.5,
+        "observed_positive_rate": 0.0
+      },
+      {
+        "range": "[0.6, 0.8]",
+        "count": 1,
+        "mean_predicted_prob": 0.7375,
+        "observed_positive_rate": 1.0
+      },
+      {
+        "range": "[0.8, 1.0]",
+        "count": 247,
+        "mean_predicted_prob": 0.9936,
+        "observed_positive_rate": 1.0
+      }
+    ],
+    "robustness": {
+      "deterministic_100_runs": true,
+      "permutation_invariant": true,
+      "missing_feature_safe": true,
+      "all_features_rejected_when_missing": "24/24"
+    },
+    "api_consistency": {
+      "endpoint": "/api/v1/ml/predict/kidney-disease",
+      "raw_prob": 0.8649,
+      "api_prob": 0.8649,
+      "api_band": "ELEVATED",
+      "consistent": true
+    },
+    "sample_errors": {
+      "false_positives_count": 0,
+      "false_negatives_count": 2,
+      "fp_sample_features": [],
+      "fn_sample_features": [
+        {
+          "age": 17.0,
+          "bp": 60.0,
+          "sg": 1.01,
+          "al": 0.0,
+          "su": 0.0,
+          "bgr": 92.0,
+          "bu": 32.0,
+          "sc": 2.1,
+          "sod": 141.0,
+          "pot": 4.2,
+          "hemo": 13.9,
+          "pcv": 52.0,
+          "wc": 7000.0,
+          "rc": 4.8,
+          "rbc": "normal",
+          "pc": "normal",
+          "pcc": "notpresent",
+          "ba": "notpresent",
+          "htn": "no",
+          "dm": "no",
+          "cad": "no",
+          "appet": "good",
+          "pe": "no",
+          "ane": "no"
+        },
+        {
+          "age": 34.0,
+          "bp": 60.0,
+          "sg": 1.02,
+          "al": 0.0,
+          "su": 0.0,
+          "bgr": 117.0,
+          "bu": 28.0,
+          "sc": 2.2,
+          "sod": 138.0,
+          "pot": 3.8,
+          "hemo": 12.65,
+          "pcv": 40.0,
+          "wc": 8000.0,
+          "rc": 4.8,
+          "rbc": "normal",
+          "pc": "normal",
+          "pcc": "notpresent",
+          "ba": "notpresent",
+          "htn": "no",
+          "dm": "no",
+          "cad": "no",
+          "appet": "good",
+          "pe": "yes",
+          "ane": "no"
+        }
+      ]
+    }
+  }
+}

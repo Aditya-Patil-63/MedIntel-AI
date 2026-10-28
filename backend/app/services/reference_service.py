@@ -109,6 +109,7 @@ class ReferenceService:
             numeric_value=analysis.numeric_value,
             original_value_text=analysis.original_value_text,
             unit=analysis.unit,
+            normalized_value=analysis.normalized_value,
             normalized_unit=analysis.normalized_unit,
             classification=analysis.classification.value if analysis.classification else None,
             analysis_status=analysis.status.value,

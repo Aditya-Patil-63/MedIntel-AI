@@ -9,6 +9,7 @@ import '../models/genai/genai_explain_response.dart';
 import '../models/genai/genai_status_response.dart';
 import '../models/auth/user_model.dart';
 import '../models/history/analysis_history_item.dart';
+import '../models/history/prescription_history_item.dart';
 import '../models/ml_risk/diabetes_risk_request.dart';
 import '../models/ml_risk/heart_disease_risk_request.dart';
 import '../models/ml_risk/kidney_disease_risk_request.dart';
@@ -104,6 +105,17 @@ abstract class ApiService {
   /// 18. Delete a report for authenticated user
   Future<void> deleteUserReport(String reportId);
 
+  /// 18b. Fetch all prescription records for authenticated user
+  Future<List<PrescriptionHistoryItem>> fetchUserPrescriptions();
+
+  /// 18c. Save or update a prescription record for authenticated user
+  Future<PrescriptionHistoryItem> saveUserPrescription(
+    PrescriptionHistoryItem prescription,
+  );
+
+  /// 18d. Delete a prescription record for authenticated user
+  Future<void> deleteUserPrescription(String prescriptionId);
+
   /// 19. Current backend base URL
   String get baseUrl;
 
@@ -139,32 +151,41 @@ class ApiServiceImpl implements ApiService {
     DioClient.setActiveBaseUrl(sanitized);
   }
 
-  @override
-  Future<Map<String, dynamic>> getHealth() async {
+  Future<T> _withNetworkFallback<T>(Future<T> Function() call) async {
     try {
-      final response = await _dio.get(ApiConstants.health);
-      return response.data as Map<String, dynamic>;
+      return await call();
     } on DioException catch (e) {
       final unwrapped = _unwrapException(e);
       if (unwrapped is NetworkException) {
         final currentBase = _dio.options.baseUrl;
         final candidates = [
-          ApiConstants.usbDeviceUrl,
           ApiConstants.emulatorUrl,
+          ApiConstants.usbDeviceUrl,
           ApiConstants.wifiLanUrl,
         ];
         for (final alt in candidates) {
           if (alt == currentBase) continue;
           try {
             updateBaseUrl(alt);
-            final altResp = await _dio.get(ApiConstants.health);
-            return altResp.data as Map<String, dynamic>;
+            return await call();
           } catch (_) {}
         }
         updateBaseUrl(currentBase);
       }
       throw unwrapped;
     }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getHealth() async {
+    return _withNetworkFallback(() async {
+      try {
+        final response = await _dio.get(ApiConstants.health);
+        return response.data as Map<String, dynamic>;
+      } on DioException catch (e) {
+        throw _unwrapException(e);
+      }
+    });
   }
 
   @override
@@ -376,23 +397,25 @@ class ApiServiceImpl implements ApiService {
     required String password,
     String? languagePreference,
   }) async {
-    try {
-      final response = await _dio.post(
-        ApiConstants.authRegister,
-        data: {
-          'name': name.trim(),
-          'email': email.trim().toLowerCase(),
-          'password': password,
-          'language_preference': languagePreference ?? 'english',
-        },
-        options: Options(contentType: 'application/json'),
-      );
-      final user = UserModel.fromJson(response.data as Map<String, dynamic>);
-      setAuthToken(user.token);
-      return user;
-    } on DioException catch (e) {
-      throw _unwrapException(e);
-    }
+    return _withNetworkFallback(() async {
+      try {
+        final response = await _dio.post(
+          ApiConstants.authRegister,
+          data: {
+            'name': name.trim(),
+            'email': email.trim().toLowerCase(),
+            'password': password,
+            'language_preference': languagePreference ?? 'english',
+          },
+          options: Options(contentType: 'application/json'),
+        );
+        final user = UserModel.fromJson(response.data as Map<String, dynamic>);
+        setAuthToken(user.token);
+        return user;
+      } on DioException catch (e) {
+        throw _unwrapException(e);
+      }
+    });
   }
 
   @override
@@ -400,21 +423,23 @@ class ApiServiceImpl implements ApiService {
     required String email,
     required String password,
   }) async {
-    try {
-      final response = await _dio.post(
-        ApiConstants.authLogin,
-        data: {
-          'email': email.trim().toLowerCase(),
-          'password': password,
-        },
-        options: Options(contentType: 'application/json'),
-      );
-      final user = UserModel.fromJson(response.data as Map<String, dynamic>);
-      setAuthToken(user.token);
-      return user;
-    } on DioException catch (e) {
-      throw _unwrapException(e);
-    }
+    return _withNetworkFallback(() async {
+      try {
+        final response = await _dio.post(
+          ApiConstants.authLogin,
+          data: {
+            'email': email.trim().toLowerCase(),
+            'password': password,
+          },
+          options: Options(contentType: 'application/json'),
+        );
+        final user = UserModel.fromJson(response.data as Map<String, dynamic>);
+        setAuthToken(user.token);
+        return user;
+      } on DioException catch (e) {
+        throw _unwrapException(e);
+      }
+    });
   }
 
   @override
@@ -423,22 +448,24 @@ class ApiServiceImpl implements ApiService {
     String? name,
     String? googleId,
   }) async {
-    try {
-      final response = await _dio.post(
-        ApiConstants.authGoogle,
-        data: {
-          'email': email.trim().toLowerCase(),
-          'name': name?.trim() ?? 'Google User',
-          'google_id': googleId,
-        },
-        options: Options(contentType: 'application/json'),
-      );
-      final user = UserModel.fromJson(response.data as Map<String, dynamic>);
-      setAuthToken(user.token);
-      return user;
-    } on DioException catch (e) {
-      throw _unwrapException(e);
-    }
+    return _withNetworkFallback(() async {
+      try {
+        final response = await _dio.post(
+          ApiConstants.authGoogle,
+          data: {
+            'email': email.trim().toLowerCase(),
+            'name': name?.trim() ?? 'Google User',
+            'google_id': googleId,
+          },
+          options: Options(contentType: 'application/json'),
+        );
+        final user = UserModel.fromJson(response.data as Map<String, dynamic>);
+        setAuthToken(user.token);
+        return user;
+      } on DioException catch (e) {
+        throw _unwrapException(e);
+      }
+    });
   }
 
   @override
@@ -482,6 +509,47 @@ class ApiServiceImpl implements ApiService {
   Future<void> deleteUserReport(String reportId) async {
     try {
       await _dio.delete('${ApiConstants.reports}/$reportId');
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<List<PrescriptionHistoryItem>> fetchUserPrescriptions() async {
+    try {
+      final response = await _dio.get(ApiConstants.prescriptionHistory);
+      final list = response.data as List<dynamic>;
+      return list
+          .map((item) =>
+              PrescriptionHistoryItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<PrescriptionHistoryItem> saveUserPrescription(
+    PrescriptionHistoryItem prescription,
+  ) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.prescriptionHistory,
+        data: prescription.toJson(),
+        options: Options(contentType: 'application/json'),
+      );
+      return PrescriptionHistoryItem.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw _unwrapException(e);
+    }
+  }
+
+  @override
+  Future<void> deleteUserPrescription(String prescriptionId) async {
+    try {
+      await _dio.delete('${ApiConstants.prescriptionHistory}/$prescriptionId');
     } on DioException catch (e) {
       throw _unwrapException(e);
     }

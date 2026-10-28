@@ -11,7 +11,7 @@ Guarantees:
     - Full audit trail preserved on every analysis result.
     - Mandatory medical disclaimer included on every response.
 """
-
+import re
 from typing import Any, Dict, List, Optional, Union
 
 from reference.models import (
@@ -290,23 +290,27 @@ class ReferenceAnalyzer:
 
         # 5. Parse numerical value
         try:
-            num_value = float(str(raw_val).strip())
+            num_value = float(str(raw_val).strip().replace(",", ""))
         except (ValueError, TypeError):
-            return AnalysisResult(
-                canonical_name=canonical_name,
-                original_test_name=original_name_str,
-                numeric_value=None,
-                original_value_text=original_val_str,
-                unit=raw_unit,
-                normalized_value=None,
-                normalized_unit=None,
-                classification=None,
-                reference_range=None,
-                reference_source=None,
-                status=AnalysisStatus.VALUE_NON_NUMERIC,
-                warnings=[f"Test value '{raw_val}' cannot be parsed as a numeric value."],
-                disclaimer=self.MANDATORY_DISCLAIMER,
-            )
+            m = re.match(r"^([+-]?(?:\d+(?:,\d{3})*(?:\.\d+)?|\.\d+))", str(raw_val).strip())
+            if m:
+                num_value = float(m.group(1).replace(",", ""))
+            else:
+                return AnalysisResult(
+                    canonical_name=canonical_name,
+                    original_test_name=original_name_str,
+                    numeric_value=None,
+                    original_value_text=original_val_str,
+                    unit=raw_unit,
+                    normalized_value=None,
+                    normalized_unit=None,
+                    classification=None,
+                    reference_range=None,
+                    reference_source=None,
+                    status=AnalysisStatus.VALUE_NON_NUMERIC,
+                    warnings=[f"Test value '{raw_val}' cannot be parsed as a numeric value."],
+                    disclaimer=self.MANDATORY_DISCLAIMER,
+                )
 
         # 6. Resolve Reference Range for canonical name and context
         ref_range, range_warnings = self.registry.get_range(canonical_name, parsed_context)
@@ -375,29 +379,47 @@ class ReferenceAnalyzer:
                 disclaimer=self.MANDATORY_DISCLAIMER,
             )
 
-        if not self.normalizer.are_units_compatible(raw_unit, ref_range.unit):
-            return AnalysisResult(
+        if self.normalizer.are_units_compatible(raw_unit, ref_range.unit):
+            eval_value = num_value
+            norm_val = num_value
+            final_norm_unit = normalized_unit
+        else:
+            converted_val = self.normalizer.convert_unit(
                 canonical_name=canonical_name,
-                original_test_name=original_name_str,
-                numeric_value=num_value,
-                original_value_text=original_val_str,
-                unit=raw_unit,
-                normalized_value=None,
-                normalized_unit=normalized_unit,
-                classification=None,
-                reference_range=ref_range,
-                reference_source=ref_range.source,
-                status=AnalysisStatus.UNIT_MISMATCH,
-                warnings=warnings
-                + [
-                    f"Supplied unit '{raw_unit}' does not match reference unit '{ref_range.unit}'. "
-                    f"Automatic unit conversion is not enabled."
-                ],
-                disclaimer=self.MANDATORY_DISCLAIMER,
+                value=num_value,
+                from_unit=raw_unit,
+                to_unit=ref_range.unit,
             )
+            if converted_val is not None:
+                eval_value = converted_val
+                norm_val = converted_val
+                final_norm_unit = ref_range.unit
+                warnings = warnings + [
+                    f"Supplied unit '{raw_unit}' converted to reference unit '{ref_range.unit}' for standardized clinical evaluation."
+                ]
+            else:
+                return AnalysisResult(
+                    canonical_name=canonical_name,
+                    original_test_name=original_name_str,
+                    numeric_value=num_value,
+                    original_value_text=original_val_str,
+                    unit=raw_unit,
+                    normalized_value=None,
+                    normalized_unit=normalized_unit,
+                    classification=None,
+                    reference_range=ref_range,
+                    reference_source=ref_range.source,
+                    status=AnalysisStatus.UNIT_MISMATCH,
+                    warnings=warnings
+                    + [
+                        f"Supplied unit '{raw_unit}' does not match reference unit '{ref_range.unit}'. "
+                        f"Automatic unit conversion is not enabled."
+                    ],
+                    disclaimer=self.MANDATORY_DISCLAIMER,
+                )
 
         # 9. Perform Deterministic Classification
-        classification = self.classify_value(num_value, ref_range)
+        classification = self.classify_value(eval_value, ref_range)
 
         return AnalysisResult(
             canonical_name=canonical_name,
@@ -405,8 +427,8 @@ class ReferenceAnalyzer:
             numeric_value=num_value,
             original_value_text=original_val_str,
             unit=raw_unit,
-            normalized_value=num_value,
-            normalized_unit=normalized_unit,
+            normalized_value=norm_val,
+            normalized_unit=final_norm_unit,
             classification=classification,
             reference_range=ref_range,
             reference_source=ref_range.source,

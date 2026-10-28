@@ -36,6 +36,13 @@ router = APIRouter(prefix="/api/v1/ml", tags=["Machine Learning Risk Prediction"
 
 
 @router.post(
+    "/predict/diabetes",
+    response_model=RiskPredictionResponse,
+    status_code=status.HTTP_200_OK,
+    include_in_schema=True,
+    summary="Estimate diabetes risk probability (canonical predict endpoint)",
+)
+@router.post(
     "/diabetes-risk",
     response_model=RiskPredictionResponse,
     status_code=status.HTTP_200_OK,
@@ -65,6 +72,13 @@ def estimate_diabetes_risk(
 
 
 @router.post(
+    "/predict/heart-disease",
+    response_model=RiskPredictionResponse,
+    status_code=status.HTTP_200_OK,
+    include_in_schema=True,
+    summary="Estimate heart disease risk probability (canonical predict endpoint)",
+)
+@router.post(
     "/heart-risk",
     response_model=RiskPredictionResponse,
     status_code=status.HTTP_200_OK,
@@ -93,6 +107,13 @@ def estimate_heart_risk(
         ) from e
 
 
+@router.post(
+    "/predict/kidney-disease",
+    response_model=RiskPredictionResponse,
+    status_code=status.HTTP_200_OK,
+    include_in_schema=True,
+    summary="Estimate kidney disease risk probability (canonical predict endpoint)",
+)
 @router.post(
     "/kidney-risk",
     response_model=RiskPredictionResponse,

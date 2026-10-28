@@ -15,11 +15,63 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.db.session import get_db
-from app.models.models import Report, TestResult, User
+from app.models.models import Report, TestResult, User, _utcnow
 
 logger = logging.getLogger("medintel.reports")
 
 router = APIRouter(prefix="/api/v1/reports", tags=["Reports"])
+history_router = APIRouter(prefix="/api/v1/history", tags=["History"])
+
+
+@history_router.get(
+    "",
+    response_model=Dict[str, Any],
+    summary="Get unified history of medical reports and prescriptions",
+)
+def get_unified_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Retrieve combined, chronologically sorted history of all reports and prescriptions."""
+    all_records = (
+        db.query(Report)
+        .filter(Report.user_id == current_user.id)
+        .order_by(Report.updated_at.desc(), Report.created_at.desc())
+        .all()
+    )
+
+    reports: List[Dict[str, Any]] = []
+    prescriptions: List[Dict[str, Any]] = []
+    all_items: List[Dict[str, Any]] = []
+
+    for rep in all_records:
+        if rep.raw_extracted_text:
+            try:
+                data = json.loads(rep.raw_extracted_text)
+                is_rx = rep.document_type == "prescription"
+                if "id" not in data or not data["id"]:
+                    data["id"] = f"{'rx' if is_rx else 'rep'}_{rep.id}"
+                data["type"] = "prescription" if is_rx else "report"
+                if "created_at" not in data or not data["created_at"]:
+                    data["created_at"] = rep.created_at.isoformat() if rep.created_at else _utcnow().isoformat()
+                if "updated_at" not in data or not data["updated_at"]:
+                    data["updated_at"] = rep.updated_at.isoformat() if rep.updated_at else data["created_at"]
+
+                all_items.append(data)
+                if is_rx:
+                    prescriptions.append(data)
+                else:
+                    reports.append(data)
+                continue
+            except json.JSONDecodeError:
+                pass
+
+    return {
+        "reports": reports,
+        "prescriptions": prescriptions,
+        "all": all_items,
+        "total": len(all_items),
+    }
 
 
 @router.get(
@@ -34,8 +86,8 @@ def get_user_reports(
     """Retrieve all saved analysis records belonging exclusively to the authenticated user."""
     reports = (
         db.query(Report)
-        .filter(Report.user_id == current_user.id)
-        .order_by(Report.created_at.desc())
+        .filter(Report.user_id == current_user.id, Report.document_type == "lab_report")
+        .order_by(Report.updated_at.desc(), Report.created_at.desc())
         .all()
     )
 
@@ -47,15 +99,24 @@ def get_user_reports(
                 # Ensure the report ID in the item matches or links
                 if "id" not in data or not data["id"]:
                     data["id"] = f"rep_{rep.id}"
+                data["type"] = "report"
+                if "created_at" not in data or not data["created_at"]:
+                    data["created_at"] = rep.created_at.isoformat() if rep.created_at else _utcnow().isoformat()
+                if "updated_at" not in data or not data["updated_at"]:
+                    data["updated_at"] = rep.updated_at.isoformat() if rep.updated_at else data["created_at"]
                 results.append(data)
                 continue
             except json.JSONDecodeError:
                 pass
 
         # Fallback if raw text wasn't JSON
+        created_str = rep.created_at.isoformat() if rep.created_at else _utcnow().isoformat()
+        updated_str = rep.updated_at.isoformat() if rep.updated_at else created_str
         results.append({
             "id": f"rep_{rep.id}",
-            "created_at": rep.created_at.isoformat() if rep.created_at else datetime.now(timezone.utc).isoformat(),
+            "type": "report",
+            "created_at": created_str,
+            "updated_at": updated_str,
             "document_name": rep.file_name or "Medical Report",
             "verified_measurement_count": 0,
             "reference_results": [],
@@ -81,6 +142,55 @@ def save_user_report(
     doc_name = payload.get("document_name", "Medical Report")
     report_id_str = str(payload.get("id", "")).strip()
 
+    payload["type"] = "report"
+    now_iso = _utcnow().isoformat()
+    if "created_at" not in payload or not payload["created_at"]:
+        payload["created_at"] = now_iso
+    payload["updated_at"] = now_iso
+
+    # Deduplicate: if report already exists for this user with same id, update updated_at
+    existing_report: Optional[Report] = None
+    if report_id_str.startswith("rep_"):
+        try:
+            num_id = int(report_id_str.replace("rep_", ""))
+            existing_report = (
+                db.query(Report)
+                .filter(Report.id == num_id, Report.user_id == current_user.id)
+                .first()
+            )
+        except ValueError:
+            pass
+
+    if not existing_report and report_id_str:
+        user_reports = (
+            db.query(Report)
+            .filter(Report.user_id == current_user.id, Report.document_type == "lab_report")
+            .all()
+        )
+        for rep in user_reports:
+            if rep.raw_extracted_text:
+                try:
+                    d = json.loads(rep.raw_extracted_text)
+                    if d.get("id") == report_id_str:
+                        existing_report = rep
+                        break
+                except Exception:
+                    pass
+
+    if existing_report:
+        existing_report.updated_at = _utcnow()
+        existing_report.raw_extracted_text = json.dumps(payload)
+        existing_report.file_name = doc_name
+        db.commit()
+        db.refresh(existing_report)
+        logger.info(
+            "Updated existing report: db_id=%d, client_id=%s, user_id=%d",
+            existing_report.id,
+            payload.get("id"),
+            current_user.id,
+        )
+        return payload
+
     # Create new database record strictly linked to this user
     report = Report(
         user_id=current_user.id,
@@ -90,6 +200,8 @@ def save_user_report(
         document_type="lab_report",
         status="analyzed",
         raw_extracted_text=json.dumps(payload),
+        created_at=_utcnow(),
+        updated_at=_utcnow(),
     )
     db.add(report)
     db.commit()
@@ -221,6 +333,72 @@ def get_user_health_trends(
         "tracked_metrics_count": len(trends_map),
         "trends": trends_map,
         "disclaimer": "This is not a medical diagnosis. Please consult a qualified healthcare professional.",
+    }
+
+
+@router.get(
+    "/{report_id}",
+    response_model=Dict[str, Any],
+    summary="Get a single medical report by ID for the current user",
+)
+def get_single_user_report(
+    report_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Retrieve a single report belonging to the authenticated user."""
+    target_report: Optional[Report] = None
+
+    if report_id.startswith("rep_"):
+        try:
+            numeric_id = int(report_id.replace("rep_", ""))
+            target_report = (
+                db.query(Report)
+                .filter(Report.id == numeric_id, Report.user_id == current_user.id)
+                .first()
+            )
+        except ValueError:
+            pass
+
+    if not target_report and report_id.isdigit():
+        target_report = (
+            db.query(Report)
+            .filter(Report.id == int(report_id), Report.user_id == current_user.id)
+            .first()
+        )
+
+    if not target_report:
+        all_user_reports = (
+            db.query(Report).filter(Report.user_id == current_user.id).all()
+        )
+        for rep in all_user_reports:
+            if rep.raw_extracted_text:
+                try:
+                    data = json.loads(rep.raw_extracted_text)
+                    if data.get("id") == report_id:
+                        target_report = rep
+                        break
+                except Exception:
+                    pass
+
+    if not target_report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found or does not belong to your account.",
+        )
+
+    if target_report.raw_extracted_text:
+        try:
+            data = json.loads(target_report.raw_extracted_text)
+            return data
+        except Exception:
+            pass
+
+    return {
+        "id": f"rep_{target_report.id}",
+        "document_name": target_report.file_name,
+        "created_at": target_report.created_at.isoformat() if target_report.created_at else _utcnow().isoformat(),
+        "type": "report",
     }
 
 

@@ -5,6 +5,7 @@ import 'package:medintel_mobile/models/auth/user_model.dart';
 import 'package:medintel_mobile/models/common/enums.dart';
 import 'package:medintel_mobile/models/extraction/document_extraction_result.dart';
 import 'package:medintel_mobile/models/history/analysis_history_item.dart';
+import 'package:medintel_mobile/models/history/prescription_history_item.dart';
 import 'package:medintel_mobile/models/genai/genai_explain_request.dart';
 import 'package:medintel_mobile/models/genai/genai_explain_response.dart';
 import 'package:medintel_mobile/models/genai/genai_status_response.dart';
@@ -273,6 +274,27 @@ class FakeApiService implements ApiService {
   @override
   Future<void> deleteUserReport(String reportId) async {
     _fakeUserReports.removeWhere((r) => r.id == reportId);
+  }
+
+  final List<PrescriptionHistoryItem> _fakeUserPrescriptions = [];
+
+  @override
+  Future<List<PrescriptionHistoryItem>> fetchUserPrescriptions() async {
+    return List.unmodifiable(_fakeUserPrescriptions);
+  }
+
+  @override
+  Future<PrescriptionHistoryItem> saveUserPrescription(
+    PrescriptionHistoryItem item,
+  ) async {
+    _fakeUserPrescriptions.removeWhere((p) => p.id == item.id);
+    _fakeUserPrescriptions.insert(0, item);
+    return item;
+  }
+
+  @override
+  Future<void> deleteUserPrescription(String prescriptionId) async {
+    _fakeUserPrescriptions.removeWhere((p) => p.id == prescriptionId);
   }
 
   @override

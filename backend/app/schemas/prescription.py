@@ -23,6 +23,9 @@ class PrescribedMedicineItem(BaseModel):
     medicine_name: Optional[str] = Field(None, description="Direct alias for medicine name in the table")
     generic_name: Optional[str] = Field(None, description="Active chemical or generic drug molecule")
     dosage: Optional[str] = Field(None, description="Prescribed dose, such as '2 ml', '1 tablet', or '500 mg'")
+    frequency: Optional[str] = Field(None, description="How often the medicine should be taken, e.g. 'Twice daily (1-0-1)'")
+    timing: Optional[str] = Field(None, description="When the medicine should be taken, e.g. 'After meals', 'Before breakfast'")
+    duration: Optional[str] = Field(None, description="Prescribed treatment duration, e.g. '5 days', '1 month'")
     purpose: str = Field(..., description="Simple explanation of what the medicine is used for")
     when_to_take: Optional[str] = Field(None, description="Prescribed timing, such as 'Before meals', 'After meals', or 'At bedtime'")
     schedule: str = Field("", description="Clear timing schedule (Morning/Afternoon/Night, Before or After meals)")
@@ -42,6 +45,12 @@ class PrescribedMedicineItem(BaseModel):
             data["name"] = data["medicine_name"]
         elif "name" in data and "medicine_name" not in data:
             data["medicine_name"] = data["name"]
+        if "timing" in data and not data.get("when_to_take"):
+            data["when_to_take"] = data["timing"]
+        if "when_to_take" in data and not data.get("timing"):
+            data["timing"] = data["when_to_take"]
+        if "frequency" in data and not data.get("schedule"):
+            data["schedule"] = data["frequency"]
         if "when_to_take" in data and not data.get("schedule"):
             data["schedule"] = data["when_to_take"]
         elif "schedule" in data and not data.get("when_to_take"):

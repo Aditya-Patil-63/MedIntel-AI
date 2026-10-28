@@ -10,7 +10,6 @@ import '../../state/document/document_cubit.dart';
 import '../../state/document/document_state.dart';
 import '../../state/history/history_cubit.dart';
 import '../../state/verification/verification_cubit.dart';
-import '../../widgets/disclaimer_banner.dart';
 import '../../widgets/genai_explanation_card.dart';
 import '../../widgets/ml_risk_card.dart';
 import '../../widgets/reference_findings_card.dart';
@@ -28,8 +27,26 @@ class ResultsScreen extends StatefulWidget {
 class _ResultsScreenState extends State<ResultsScreen> {
   String? _savedHistoryId;
 
-  void _saveToHistory(BuildContext context, AnalysisState state) {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = context.read<AnalysisCubit>().state;
+      if (state.status == AnalysisStatus.success &&
+          state.snapshot != null &&
+          !state.isGenAiLoading &&
+          state.hasResults &&
+          _savedHistoryId == null) {
+        _saveToHistory(context, state, showNotification: false);
+      }
+    });
+  }
+
+  void _saveToHistory(BuildContext context, AnalysisState state,
+      {bool showNotification = true}) {
     if (state.snapshot == null || state.isGenAiLoading) return;
+    if (_savedHistoryId != null) return;
 
     String docName = 'Medical Report';
     final docState = context.read<DocumentCubit>().state;
@@ -40,7 +57,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
       }
     }
 
-    final historyId = 'hist_${DateTime.now().millisecondsSinceEpoch}';
+    final historyId = state.snapshot != null && state.snapshot!.id.isNotEmpty
+        ? 'hist_${state.snapshot!.id}'
+        : 'hist_${DateTime.now().millisecondsSinceEpoch}';
     final historyItem = AnalysisHistoryItem.fromAnalysisState(
       id: historyId,
       createdAt: DateTime.now(),
@@ -50,16 +69,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
     context.read<HistoryCubit>().addRecord(historyItem);
 
-    setState(() {
-      _savedHistoryId = historyId;
-    });
+    if (mounted) {
+      setState(() {
+        _savedHistoryId = historyId;
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Analysis saved to local session history.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+      if (showNotification) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Analysis saved to local session history.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   void _startNewAnalysis(BuildContext context) {
@@ -76,17 +99,22 @@ class _ResultsScreenState extends State<ResultsScreen> {
         title: const Text('Analysis & Risk Assessment'),
       ),
       body: SafeArea(
-        child: BlocBuilder<AnalysisCubit, AnalysisState>(
+        child: BlocConsumer<AnalysisCubit, AnalysisState>(
+          listener: (context, state) {
+            if (state.status == AnalysisStatus.success &&
+                state.snapshot != null &&
+                !state.isGenAiLoading &&
+                state.hasResults &&
+                _savedHistoryId == null) {
+              _saveToHistory(context, state, showNotification: false);
+            }
+          },
           builder: (context, state) {
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Mandatory Educational Disclaimer Banner
-                  const DisclaimerBanner(),
-                  const SizedBox(height: 14),
-
                   // 2. 3-Step Guided Progress Tracker
                   _buildStepTracker(currentStep: 3),
                   const SizedBox(height: 16),
@@ -204,12 +232,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       color: AppColors.textPrimary,
                       letterSpacing: -0.3,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Statistical multivariate models estimating continuous probability from patient profile.',
-                    style: TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 12),
 
@@ -415,9 +437,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            attentionCount > 0
-                ? '$attentionCount measurement${attentionCount > 1 ? "s are" : " is"} outside standard reference intervals. Consult your healthcare professional to discuss these findings.'
-                : 'All evaluated measurements are within standard reference intervals.',
+            () {
+              final evaluatedCount = normalCount + attentionCount;
+              if (evaluatedCount == 0) {
+                return totalCount > 0
+                    ? '$totalCount measurement${totalCount > 1 ? "s require" : " requires"} clinical review or unit verification.'
+                    : 'No laboratory measurements to evaluate.';
+              } else if (attentionCount > 0) {
+                return '$attentionCount measurement${attentionCount > 1 ? "s are" : " is"} outside standard reference intervals. Consult your healthcare professional to discuss these findings.';
+              } else {
+                return 'All evaluated measurements are within standard reference intervals.';
+              }
+            }(),
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
@@ -484,13 +515,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
           SizedBox(
             width: double.infinity,
             height: 48,
-            child: ElevatedButton.icon(
-              icon: Icon(
-                isSaved
-                    ? Icons.check_circle_rounded
-                    : Icons.bookmark_add_outlined,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    isSaved ? AppColors.normal : AppColors.primary,
               ),
-              label: Text(
+              onPressed: (canSave && !isSaved)
+                  ? () => _saveToHistory(context, state)
+                  : null,
+              child: Text(
                 isSaved
                     ? 'Saved to History'
                     : (state.isGenAiLoading
@@ -501,26 +534,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isSaved ? AppColors.normal : AppColors.primary,
-              ),
-              onPressed: (canSave && !isSaved)
-                  ? () => _saveToHistory(context, state)
-                  : null,
             ),
           ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 48,
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.add_circle_outline_rounded),
-              label: const Text(
+            child: OutlinedButton(
+              onPressed: () => _startNewAnalysis(context),
+              child: const Text(
                 'Start New Analysis',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
-              onPressed: () => _startNewAnalysis(context),
             ),
           ),
           if (isSaved) ...[
@@ -531,7 +556,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 Icon(Icons.check, size: 14, color: AppColors.normal),
                 SizedBox(width: 6),
                 Text(
-                  'Saved in local session history. Accessible in History tab.',
+                  'Saved to your history. Accessible in the History tab.',
                   style: TextStyle(
                     fontSize: 11,
                     color: AppColors.normal,

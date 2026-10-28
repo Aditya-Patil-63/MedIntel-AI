@@ -12,6 +12,9 @@ class PrescribedMedicineItem extends Equatable {
   final String? medicineName;
   final String? genericName;
   final String? dosage;
+  final String? frequency;
+  final String? timing;
+  final String? duration;
   final String purpose;
   final String? whenToTake;
   final String schedule;
@@ -25,6 +28,9 @@ class PrescribedMedicineItem extends Equatable {
     this.medicineName,
     this.genericName,
     this.dosage,
+    this.frequency,
+    this.timing,
+    this.duration,
     required this.purpose,
     this.whenToTake,
     this.schedule = '',
@@ -38,11 +44,38 @@ class PrescribedMedicineItem extends Equatable {
       (medicineName != null && medicineName!.isNotEmpty) ? medicineName! : name;
 
   String get displayDosage =>
-      (dosage != null && dosage!.isNotEmpty) ? dosage! : 'As prescribed';
+      (dosage != null && dosage!.isNotEmpty && dosage != 'As prescribed')
+          ? dosage!
+          : (dosage == 'As prescribed' ? 'As prescribed' : 'Not specified');
+
+  String get displayFrequency {
+    if (frequency != null && frequency!.isNotEmpty) return frequency!;
+    if (schedule.isNotEmpty) return schedule;
+    return 'Not specified';
+  }
+
+  String get displayTiming {
+    if (timing != null && timing!.isNotEmpty) return timing!;
+    if (whenToTake != null && whenToTake!.isNotEmpty) return whenToTake!;
+    return 'Not specified';
+  }
+
+  String get displayDuration {
+    if (duration != null && duration!.isNotEmpty) return duration!;
+    return 'Not specified';
+  }
+
+  String get displayInstructions {
+    if (instructions.isNotEmpty) return instructions;
+    return 'Not specified';
+  }
 
   String get displayWhenToTake {
     if (whenToTake != null && whenToTake!.isNotEmpty) {
       return whenToTake!;
+    }
+    if (timing != null && timing!.isNotEmpty) {
+      return timing!;
     }
     if (schedule.isNotEmpty) {
       return schedule;
@@ -56,9 +89,12 @@ class PrescribedMedicineItem extends Equatable {
       medicineName: json['medicine_name'] as String? ?? json['name'] as String?,
       genericName: json['generic_name'] as String?,
       dosage: json['dosage'] as String?,
+      frequency: json['frequency'] as String?,
+      timing: json['timing'] as String?,
+      duration: json['duration'] as String?,
       purpose: json['purpose'] as String? ?? '',
-      whenToTake: json['when_to_take'] as String? ?? json['schedule'] as String?,
-      schedule: json['schedule'] as String? ?? '',
+      whenToTake: json['when_to_take'] as String? ?? json['timing'] as String? ?? json['schedule'] as String?,
+      schedule: json['schedule'] as String? ?? json['frequency'] as String? ?? '',
       instructions: json['instructions'] as String? ?? '',
       precautions: json['precautions'] as String?,
       needsConfirmation: json['needs_confirmation'] as bool? ?? false,
@@ -71,6 +107,9 @@ class PrescribedMedicineItem extends Equatable {
         if (medicineName != null) 'medicine_name': medicineName,
         if (genericName != null) 'generic_name': genericName,
         if (dosage != null) 'dosage': dosage,
+        if (frequency != null) 'frequency': frequency,
+        if (timing != null) 'timing': timing,
+        if (duration != null) 'duration': duration,
         'purpose': purpose,
         if (whenToTake != null) 'when_to_take': whenToTake,
         'schedule': schedule,
@@ -86,6 +125,9 @@ class PrescribedMedicineItem extends Equatable {
         medicineName,
         genericName,
         dosage,
+        frequency,
+        timing,
+        duration,
         purpose,
         whenToTake,
         schedule,

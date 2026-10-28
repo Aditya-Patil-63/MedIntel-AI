@@ -138,22 +138,57 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: RepositoryProvider<ApiService>.value(
-            value: mockApiService,
-            child: const PrescriptionExplainerScreen(),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RepositoryProvider<ApiService>.value(
+                        value: mockApiService,
+                        child: const PrescriptionExplainerScreen(),
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ),
           ),
         ),
       );
 
+      // Open screen via navigator to verify back button
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // App bar title and back button
       expect(find.text('Prescription Explainer'), findsOneWidget);
-      expect(find.text('OBJECTIVE 2'), findsOneWidget);
-      expect(find.text('Understanding Prescriptions'), findsOneWidget);
+      expect(find.byType(BackButton), findsOneWidget);
+
+      // Removed elements must be absent
+      expect(find.text('OBJECTIVE 2'), findsNothing);
+      expect(find.text('Understanding Prescriptions'), findsNothing);
+      expect(find.byIcon(Icons.refresh), findsNothing);
+
+      // Language selector
+      expect(find.text('Language:'), findsOneWidget);
+      expect(find.text('English'), findsOneWidget);
+
+      // Input selector tabs
       expect(find.text('Photo / PDF Upload'), findsOneWidget);
       expect(find.text('Prescription Text'), findsOneWidget);
-      expect(find.text('Explain Prescription (Objective 2)'), findsOneWidget);
+
+      // Prescription input area
+      expect(find.text('Upload Prescription Image or PDF'), findsOneWidget);
+
+      // Simplified action button without icon
+      expect(find.text('Explain Prescription'), findsOneWidget);
+      expect(find.text('Explain Prescription (Objective 2)'), findsNothing);
+      expect(find.byIcon(Icons.table_chart_rounded), findsNothing);
     });
 
-    testWidgets('switching to text tab shows presets and text field',
+    testWidgets('switching to text tab shows clean text field and no presets',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -167,13 +202,17 @@ void main() {
       await tester.tap(find.text('Prescription Text'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Quick Demonstration Presets:'), findsOneWidget);
-      expect(find.text('Chronic (BP/Diabetes)'), findsOneWidget);
-      expect(find.text('Infection (Antibiotics)'), findsOneWidget);
-      expect(find.text('Handwritten (Safety Flag)'), findsOneWidget);
+      // Clean hint text
+      expect(find.text('Enter prescription details here...'), findsOneWidget);
+
+      // Presets must be removed
+      expect(find.text('Quick Demonstration Presets:'), findsNothing);
+      expect(find.text('Chronic (BP/Diabetes)'), findsNothing);
+      expect(find.text('Infection (Antibiotics)'), findsNothing);
+      expect(find.text('Handwritten (Safety Flag)'), findsNothing);
     });
 
-    testWidgets('tapping preset loads prescription text into field',
+    testWidgets('entering prescription text updates controller and validates correctly',
         (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
@@ -191,8 +230,10 @@ void main() {
       await tester.tap(find.text('Prescription Text'));
       await tester.pumpAndSettle();
 
-      // Tap preset 1
-      await tester.tap(find.text('Chronic (BP/Diabetes)'));
+      await tester.enterText(
+        find.byType(TextField),
+        'Tab. Metformin 500mg 1-0-1\nTab. Amlodipine 5mg',
+      );
       await tester.pumpAndSettle();
 
       final textField = tester.widget<TextField>(find.byType(TextField));
@@ -201,9 +242,9 @@ void main() {
     });
 
     testWidgets(
-        'submitting prescription renders structured 4-column table, safety banner, and doctor notes',
+        'submitting prescription renders structured medicine cards, doctor notes, and questions without redundant banners',
         (tester) async {
-      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -253,22 +294,30 @@ void main() {
         ),
       );
 
-      // Switch to text tab and select preset
+      // Switch to text tab and enter prescription lines
       await tester.tap(find.text('Prescription Text'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Chronic (BP/Diabetes)'));
+      await tester.enterText(
+        find.byType(TextField),
+        'Rx\n1. Tab. Metformin 500mg 1-0-1\n2. Tab. Amlodipine 5mg',
+      );
       await tester.pumpAndSettle();
 
       // Tap explain button
-      await tester.ensureVisible(find.text('Explain Prescription (Objective 2)'));
-      await tester.tap(find.text('Explain Prescription (Objective 2)'));
+      await tester.ensureVisible(find.text('Explain Prescription'));
+      await tester.tap(find.text('Explain Prescription'));
       await tester.pumpAndSettle();
 
-      // Verify 4 exact table columns exist
-      expect(find.text('Medicine Name'), findsOneWidget);
-      expect(find.text('Purpose'), findsOneWidget);
-      expect(find.text('Dosage'), findsOneWidget);
-      expect(find.text('When to Take'), findsOneWidget);
+      // Verify removed elements are absent
+      expect(find.text('Important Safety & Clinical Guidance'), findsNothing);
+      expect(find.text('Prescribed Medication Schedule Table'), findsNothing);
+      expect(find.text('Explain Prescription'), findsNothing); // Hidden in results
+
+      // Verify medicine detail card fields exist
+      expect(find.text('Medicine Name'), findsNWidgets(2));
+      expect(find.text('Purpose'), findsNWidgets(2));
+      expect(find.text('Dosage'), findsNWidgets(2));
+      expect(find.text('Frequency'), findsNWidgets(2));
 
       // Verify row values
       expect(find.text('Metformin 500mg'), findsOneWidget);
@@ -278,7 +327,7 @@ void main() {
       expect(find.text('Twice daily after meals'), findsOneWidget);
 
       // Verify safety confirmation flag badge
-      expect(find.text('⚠️ Confirm with Pharmacist'), findsOneWidget);
+      expect(find.text('Please confirm with pharmacist'), findsOneWidget);
 
       // Verify doctor notes card
       expect(find.text('Doctor Notes & Clinical Advice'), findsOneWidget);
@@ -286,18 +335,41 @@ void main() {
           find.text('Doctor Advice: Low salt diet and brisk walk daily'),
           findsOneWidget);
 
-      // Verify safety disclaimer banner
-      expect(
-          find.text('Important Safety & Clinical Guidance'), findsOneWidget);
-      expect(
-          find.textContaining('Gemini-generated information must NOT override'),
-          findsOneWidget);
-
       // Verify questions for doctor card
       expect(find.text('Questions to Ask Your Doctor or Pharmacist'),
           findsOneWidget);
       expect(find.text('How long should I take this medication?'),
           findsOneWidget);
+
+      // Verify Analyze Another Prescription button is present and resets view
+      final analyzeAnotherFinder = find.text('Analyze Another Prescription');
+      expect(analyzeAnotherFinder, findsOneWidget);
+      await tester.ensureVisible(analyzeAnotherFinder);
+      await tester.tap(analyzeAnotherFinder);
+      await tester.pumpAndSettle();
+
+      // Input view should be restored
+      expect(find.text('Explain Prescription'), findsOneWidget);
+      expect(find.text('Analyze Another Prescription'), findsNothing);
+    });
+
+    testWidgets('empty text validation shows error snackbar', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RepositoryProvider<ApiService>.value(
+            value: mockApiService,
+            child: const PrescriptionExplainerScreen(),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Prescription Text'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Explain Prescription'));
+      await tester.pump();
+
+      expect(find.text('Please enter prescription text.'), findsOneWidget);
     });
 
     testWidgets('error state displays failure card', (tester) async {
@@ -319,11 +391,14 @@ void main() {
 
       await tester.tap(find.text('Prescription Text'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Chronic (BP/Diabetes)'));
+      await tester.enterText(
+        find.byType(TextField),
+        'Tab. Metformin 500mg 1-0-1',
+      );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Explain Prescription (Objective 2)'));
-      await tester.tap(find.text('Explain Prescription (Objective 2)'));
+      await tester.ensureVisible(find.text('Explain Prescription'));
+      await tester.tap(find.text('Explain Prescription'));
       await tester.pumpAndSettle();
 
       expect(find.text('Unable to Process Prescription'), findsOneWidget);

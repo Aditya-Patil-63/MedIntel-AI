@@ -145,7 +145,7 @@ class GeminiProvider(BaseGenAIProvider):
         client: Optional[Any] = None,
     ):
         self._api_key = api_key or getattr(settings, "GEMINI_API_KEY", None)
-        self._model_name = model_name or getattr(settings, "GEMINI_MODEL", "gemini-3.8-flash")
+        self._model_name = model_name or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
         self._timeout_seconds = timeout_seconds or getattr(settings, "GEMINI_TIMEOUT_SECONDS", 30.0)
         self._max_output_tokens = max_output_tokens or getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 2048)
 

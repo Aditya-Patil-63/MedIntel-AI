@@ -395,9 +395,11 @@ class HistoryDetailScreen extends StatelessWidget {
           children: [
             const Icon(Icons.info_outline, color: AppColors.textMuted, size: 18),
             const SizedBox(width: 8),
-            Text(
-              '$title: Not evaluated in this run',
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            Expanded(
+              child: Text(
+                '$title: Not evaluated in this run',
+                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
             ),
           ],
         ),

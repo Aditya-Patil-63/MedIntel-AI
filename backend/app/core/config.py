@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     # Generative AI & Explanation (Phase 8)
     GENAI_PROVIDER: str = "mock"  # "mock" or "gemini"
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-3.8-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     GEMINI_TIMEOUT_SECONDS: float = 30.0
     GEMINI_MAX_OUTPUT_TOKENS: int = 2048
 

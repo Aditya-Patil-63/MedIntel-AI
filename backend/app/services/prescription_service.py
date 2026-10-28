@@ -1020,6 +1020,24 @@ class PrescriptionService:
         re.IGNORECASE,
     )
 
+    FREQUENCY_PATTERN = re.compile(
+        r"(\b[0-2]\s*-\s*[0-2]\s*-\s*[0-2]\b|"
+        r"\b(?:once|twice|thrice|three times)\s+daily\b|"
+        r"\b(?:sos|od|bd|bid|tds|tid|qid)\b)",
+        re.IGNORECASE,
+    )
+
+    TIMING_PATTERN = re.compile(
+        r"(\b(?:before|after|with)\s+(?:meals?|food|breakfast|dinner|lunch)\b|"
+        r"\b(?:empty\s+stomach|at\s+bedtime|at\s+night|in\s+morning|bedtime|morning|evening|night|hs)\b)",
+        re.IGNORECASE,
+    )
+
+    DURATION_PATTERN = re.compile(
+        r"(?:for|x|\*)\s*(\d+\s*(?:days?|weeks?|months?|d|w|m))\b|\b(\d+\s*(?:days?|weeks?|months?))\b",
+        re.IGNORECASE,
+    )
+
     HEADER_PATTERN = re.compile(
         r"^(?:dr[\.\s]|doctor\b|patient\b|pt[\.\s]|name\s*:|age\s*:|gender\s*:|sex\s*:|date\s*:|reg(?:\s*no)?[\.\s:]|opd\b|ipd\b)|"
         r"\b(?:clinic|hospital|dispensary|nursing\s+home|healthcare|mbbs|bams|bhms)\b",
@@ -1082,9 +1100,17 @@ class PrescriptionService:
             dose_match = cls.DOSAGE_PATTERN.search(cleaned)
             extracted_dose = dose_match.group(1).strip() if dose_match else None
 
-            # Extract timing hint if present in line
-            timing_matches = cls.SCHEDULE_PATTERN.findall(cleaned)
-            extracted_timing = " ".join(timing_matches).strip() if timing_matches else None
+            # Extract frequency hint
+            freq_match = cls.FREQUENCY_PATTERN.search(cleaned)
+            extracted_freq = freq_match.group(1).strip() if freq_match else None
+
+            # Extract timing hint
+            timing_match = cls.TIMING_PATTERN.search(cleaned)
+            extracted_timing = timing_match.group(1).strip() if timing_match else None
+
+            # Extract duration hint
+            dur_match = cls.DURATION_PATTERN.search(cleaned)
+            extracted_duration = (dur_match.group(1) or dur_match.group(2)).strip() if dur_match else None
 
             # Check if line contains illegible / ambiguous markers
             is_ambiguous = bool(re.search(r"\?|unclear|illegible|dose unclear|unidentified", cleaned, re.IGNORECASE))
@@ -1093,7 +1119,9 @@ class PrescriptionService:
                 "raw_line": line,
                 "cleaned_name": cleaned,
                 "extracted_dosage": extracted_dose,
+                "extracted_frequency": extracted_freq,
                 "extracted_timing": extracted_timing,
+                "extracted_duration": extracted_duration,
                 "is_ambiguous": is_ambiguous,
             })
 
@@ -1210,6 +1238,147 @@ class PrescriptionService:
         return default_dict.get(lang, default_dict.get("english", extracted_timing))
 
     @classmethod
+    def explain_image_with_gemini(
+        cls,
+        file_bytes: bytes,
+        filename: str,
+        lang: str = "english",
+    ) -> Optional[PrescriptionExplainResponse]:
+        """Direct multimodal vision analysis of prescription images or PDFs via Gemini."""
+        api_key = getattr(settings, "GEMINI_API_KEY", None)
+        if not api_key or not str(api_key).strip():
+            return None
+
+        key_str = str(api_key).strip()
+
+        ext = filename.lower().split(".")[-1] if "." in filename else "png"
+        mime_map = {
+            "png": "image/png",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "pdf": "application/pdf",
+            "webp": "image/webp",
+        }
+        mime_type = mime_map.get(ext, "image/png")
+
+        try:
+            import json
+            from google import genai
+            from google.genai import types
+
+            client = genai.Client(api_key=key_str)
+            part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+
+            system_instruction = (
+                "You are MedIntel AI's Educational Prescription Explainer assistant. "
+                "You accurately extract and interpret handwritten and printed medical prescriptions. "
+                "For each identified medicine in the prescription, output:\n"
+                "- name: The identified medicine name including dosage strength if present\n"
+                "- medicine_name: Clean trade/brand name\n"
+                "- generic_name: Active molecule/salt if known (or null)\n"
+                "- dosage: Prescribed dose (e.g. '500 mg', '2 ml', or 'Not specified')\n"
+                "- frequency: Prescribed frequency (e.g. '1-0-1', 'Twice daily', or 'Not specified')\n"
+                "- timing: Prescribed timing (e.g. 'After meals', 'Before breakfast', or 'Not specified')\n"
+                "- duration: Prescribed treatment duration (e.g. '5 days', '1 month', or 'Not specified')\n"
+                "- purpose: Simple explanation of what the medicine is used for in patient-friendly terms\n"
+                "- instructions: Instructions from doctor (e.g. 'Take with water after food', or 'Not specified')\n"
+                "- needs_confirmation: Boolean. True if handwriting or dosage is ambiguous\n"
+                "- confidence_note: Guidance prompting pharmacist confirmation if needs_confirmation is True\n\n"
+                "MANDATORY SAFETY BOUNDARIES:\n"
+                "1. If handwriting is illegible or a medicine cannot be identified, set medicine_name to "
+                "'Unable to identify medicine — please confirm with your doctor or pharmacist', set needs_confirmation to True, "
+                "and NEVER invent medicine names, dosages, or durations.\n"
+                "2. NEVER use generic placeholder names like 'General Prescription' or 'Prescribed Medication'.\n"
+                f"3. Translate explanations into {lang} (English, Hindi, Marathi, Gujarati).\n"
+                "4. Strictly return JSON matching the specified schema."
+            )
+
+            prompt = (
+                f"Analyze this prescription document ({filename}) carefully in {lang}.\n"
+                "Extract all prescribed medicines, dosage, frequency, timing, duration, instructions, and doctor advice.\n"
+                "Provide response strictly as JSON with: doctor_notes, medicines (array of medicine objects), general_guidance, questions_for_doctor."
+            )
+
+            config = types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.1,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+            )
+
+            response = client.models.generate_content(
+                model=getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite"),
+                contents=[part, prompt],
+                config=config,
+            )
+
+            if not response or not getattr(response, "text", None):
+                return None
+
+            raw_text = response.text.strip()
+            if raw_text.startswith("```"):
+                lines = raw_text.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                raw_text = "\n".join(lines).strip()
+
+            parsed = json.loads(raw_text)
+            med_items: List[PrescribedMedicineItem] = []
+            for item in parsed.get("medicines", []):
+                name = item.get("medicine_name") or item.get("name") or "Unable to identify medicine — please confirm with your doctor or pharmacist"
+                med_items.append(
+                    PrescribedMedicineItem(
+                        name=name,
+                        medicine_name=name,
+                        generic_name=item.get("generic_name"),
+                        dosage=item.get("dosage") or "Not specified",
+                        frequency=item.get("frequency") or item.get("schedule") or "Not specified",
+                        timing=item.get("timing") or item.get("when_to_take") or "Not specified",
+                        duration=item.get("duration") or "Not specified",
+                        purpose=item.get("purpose") or "Medication prescribed by physician.",
+                        when_to_take=item.get("when_to_take") or item.get("timing") or "As directed",
+                        schedule=item.get("schedule") or item.get("frequency") or "",
+                        instructions=item.get("instructions") or "Take as advised by your physician.",
+                        precautions=item.get("precautions"),
+                        needs_confirmation=bool(item.get("needs_confirmation", False)),
+                        confidence_note=item.get("confidence_note"),
+                    )
+                )
+
+            if not med_items:
+                med_items = [
+                    PrescribedMedicineItem(
+                        name="Unable to identify medicine — please confirm with your doctor or pharmacist",
+                        medicine_name="Unable to identify medicine — please confirm with your doctor or pharmacist",
+                        generic_name=None,
+                        dosage="Not specified",
+                        frequency="Not specified",
+                        timing="Not specified",
+                        duration="Not specified",
+                        purpose="Prescription image could not be transcribed with confidence. Please show this prescription to a pharmacist or doctor.",
+                        when_to_take="As directed by doctor",
+                        schedule="As directed",
+                        instructions="Please consult your doctor or pharmacist to confirm medicine details.",
+                        needs_confirmation=True,
+                        confidence_note="Handwriting is unclear. Always verify before taking.",
+                    )
+                ]
+
+            return PrescriptionExplainResponse(
+                doctor_notes=parsed.get("doctor_notes") or "Prescription reviewed and structured for patient understanding.",
+                medicines=med_items,
+                general_guidance=parsed.get("general_guidance") or GENERAL_GUIDANCE_TEMPLATES.get(lang, GENERAL_GUIDANCE_TEMPLATES["english"]),
+                questions_for_doctor=parsed.get("questions_for_doctor") or QUESTIONS_FOR_DOCTOR_TEMPLATES.get(lang, QUESTIONS_FOR_DOCTOR_TEMPLATES["english"]),
+                language=lang,
+                disclaimer=MANDATORY_PRESCRIPTION_DISCLAIMER,
+            )
+        except Exception as exc:
+            logger.warning("Gemini multimodal prescription analysis error: %s", exc)
+            return None
+
+    @classmethod
     def _explain_with_gemini(
         cls,
         request: PrescriptionExplainRequest,
@@ -1222,10 +1391,6 @@ class PrescriptionService:
             return None
 
         key_str = str(api_key).strip()
-        # Google AI Studio Gemini API keys begin with 'AIzaSy'.
-        # Skip live network call if key is synthetic placeholder or mock.
-        if not key_str.startswith("AIzaSy"):
-            return None
 
         try:
             import json
@@ -1233,26 +1398,32 @@ class PrescriptionService:
             from google.genai import types
 
             http_opts = types.HttpOptions(
-                timeout=5000,
+                timeout=10000,
                 retry_options=types.HttpRetryOptions(attempts=1),
             )
             client = genai.Client(api_key=key_str, http_options=http_opts)
 
             system_instruction = (
                 "You are MedIntel AI's Educational Prescription Explainer assistant. "
-                "Your role is to help patients understand what the doctor has prescribed in a structured table. "
+                "Your role is to help patients understand what the doctor has prescribed in a structured format. "
                 "For each identified medicine, you MUST output:\n"
-                "- Medicine Name: The identified medicine name\n"
-                "- Purpose: A simple explanation of what the medicine is used for\n"
-                "- Dosage: The prescribed dose, such as '2 ml', '1 tablet', or '500 mg'\n"
-                "- When to Take: The prescribed timing, such as 'Before meals', 'After meals', or 'At bedtime'\n"
+                "- name: The identified medicine name\n"
+                "- medicine_name: The clean identified trade or generic name\n"
+                "- generic_name: Active drug molecule/chemical\n"
+                "- dosage: The prescribed dose, such as '2 ml', '1 tablet', or '500 mg', or 'Not specified'\n"
+                "- frequency: Prescribed frequency, such as '1-0-1', 'Twice daily', or 'Not specified'\n"
+                "- timing: Prescribed timing, such as 'Before meals', 'After meals', or 'At bedtime', or 'Not specified'\n"
+                "- duration: Prescribed duration, such as '5 days', '1 month', or 'Not specified'\n"
+                "- purpose: A simple explanation of what the medicine is used for in patient-friendly terms\n"
+                "- instructions: Important instructions from prescription or 'Not specified'\n"
                 "- needs_confirmation: Boolean. If handwriting or transcription cannot confidently identify the medicine or dose, set to true.\n"
-                "- confidence_note: Guidance prompting confirmation by pharmacist or doctor if needs_confirmation is true.\n"
+                "- confidence_note: Guidance prompting confirmation by pharmacist or doctor if needs_confirmation is true.\n\n"
                 "MANDATORY SAFETY BOUNDARIES:\n"
                 "1. Gemini-generated information must NOT override the doctor's prescribed instructions.\n"
                 "2. If handwriting is illegible or dosage is ambiguous, flag it for confirmation by a pharmacist or doctor rather than guessing.\n"
-                f"3. Translate all explanations into the requested language: {lang} (English, Hindi, Marathi, Gujarati).\n"
-                "4. Strictly return JSON matching the specified schema."
+                "3. NEVER use generic placeholder names like 'General Prescription' or 'Prescribed Medication'.\n"
+                f"4. Translate all explanations into the requested language: {lang} (English, Hindi, Marathi, Gujarati).\n"
+                "5. Strictly return JSON matching the specified schema."
             )
 
             prompt = (
@@ -1269,6 +1440,9 @@ class PrescriptionService:
                 '      "medicine_name": "...",\n'
                 '      "generic_name": "...",\n'
                 '      "dosage": "...",\n'
+                '      "frequency": "...",\n'
+                '      "timing": "...",\n'
+                '      "duration": "...",\n'
                 '      "purpose": "...",\n'
                 '      "when_to_take": "...",\n'
                 '      "schedule": "...",\n'
@@ -1285,13 +1459,13 @@ class PrescriptionService:
 
             config = types.GenerateContentConfig(
                 system_instruction=system_instruction,
-                temperature=0.2,
+                temperature=0.1,
                 max_output_tokens=2048,
                 response_mime_type="application/json",
             )
 
             response = client.models.generate_content(
-                model=getattr(settings, "GEMINI_MODEL", "gemini-3.8-flash"),
+                model=getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite"),
                 contents=prompt,
                 config=config,
             )
@@ -1311,16 +1485,20 @@ class PrescriptionService:
             parsed = json.loads(raw_text)
             med_items: List[PrescribedMedicineItem] = []
             for item in parsed.get("medicines", []):
+                name = item.get("medicine_name") or item.get("name") or "Unable to identify medicine — please confirm with your doctor or pharmacist"
                 med_items.append(
                     PrescribedMedicineItem(
-                        name=item.get("name") or item.get("medicine_name") or "Prescribed Drug",
-                        medicine_name=item.get("medicine_name") or item.get("name"),
+                        name=name,
+                        medicine_name=name,
                         generic_name=item.get("generic_name"),
-                        dosage=item.get("dosage", "As prescribed"),
-                        purpose=item.get("purpose", ""),
-                        when_to_take=item.get("when_to_take") or item.get("schedule", "As directed by physician"),
-                        schedule=item.get("schedule") or item.get("when_to_take", ""),
-                        instructions=item.get("instructions", "Take as advised by your physician."),
+                        dosage=item.get("dosage") or "Not specified",
+                        frequency=item.get("frequency") or item.get("schedule") or "Not specified",
+                        timing=item.get("timing") or item.get("when_to_take") or "Not specified",
+                        duration=item.get("duration") or "Not specified",
+                        purpose=item.get("purpose") or "Medication prescribed by physician.",
+                        when_to_take=item.get("when_to_take") or item.get("timing") or "As directed by physician",
+                        schedule=item.get("schedule") or item.get("frequency") or "",
+                        instructions=item.get("instructions") or "Take as advised by your physician.",
                         precautions=item.get("precautions"),
                         needs_confirmation=bool(item.get("needs_confirmation", False)),
                         confidence_note=item.get("confidence_note"),
@@ -1355,12 +1533,16 @@ class PrescriptionService:
                     continue
                 cleaned = m.strip()
                 dose_match = cls.DOSAGE_PATTERN.search(cleaned)
-                timing_matches = cls.SCHEDULE_PATTERN.findall(cleaned)
+                freq_match = cls.FREQUENCY_PATTERN.search(cleaned)
+                timing_match = cls.TIMING_PATTERN.search(cleaned)
+                dur_match = cls.DURATION_PATTERN.search(cleaned)
                 candidate_items.append({
                     "raw_line": cleaned,
                     "cleaned_name": cleaned,
                     "extracted_dosage": dose_match.group(1).strip() if dose_match else None,
-                    "extracted_timing": " ".join(timing_matches).strip() if timing_matches else None,
+                    "extracted_frequency": freq_match.group(1).strip() if freq_match else None,
+                    "extracted_timing": timing_match.group(1).strip() if timing_match else None,
+                    "extracted_duration": (dur_match.group(1) or dur_match.group(2)).strip() if dur_match else None,
                     "is_ambiguous": bool(re.search(r"\?|unclear|illegible|dose unclear|unidentified", cleaned, re.IGNORECASE)),
                 })
         elif request.prescription_text and request.prescription_text.strip():
@@ -1368,40 +1550,42 @@ class PrescriptionService:
 
         if not candidate_items:
             candidate_items = [{
-                "raw_line": "General Prescription",
-                "cleaned_name": "General Prescription",
-                "extracted_dosage": "As prescribed",
-                "extracted_timing": None,
+                "raw_line": request.prescription_text.strip() if request.prescription_text else "Prescription",
+                "cleaned_name": "Unable to identify medicine — please confirm with your doctor or pharmacist",
+                "extracted_dosage": "Not specified",
+                "extracted_frequency": "Not specified",
+                "extracted_timing": "Not specified",
+                "extracted_duration": "Not specified",
                 "is_ambiguous": True,
             }]
 
         target_medicines = [item["cleaned_name"] for item in candidate_items]
 
-        # 1. Attempt Gemini AI integration if configured
-        gemini_result = cls._explain_with_gemini(request, target_medicines, lang)
-        if gemini_result is not None:
-            return gemini_result
-
-        # 2. Audited clinical pharmaceutical knowledge base fallback
+        # 2. Audited clinical pharmaceutical knowledge base evaluation
         explained_items: List[PrescribedMedicineItem] = []
 
         for item in candidate_items:
             cleaned_line = item["cleaned_name"]
-            extracted_dose = item["extracted_dosage"]
-            extracted_timing = item["extracted_timing"]
-            is_ambiguous = item["is_ambiguous"]
+            extracted_dose = item.get("extracted_dosage")
+            extracted_freq = item.get("extracted_frequency")
+            extracted_timing = item.get("extracted_timing")
+            extracted_dur = item.get("extracted_duration")
+            is_ambiguous = item.get("is_ambiguous", False)
 
             match_result = cls._find_matching_drug(cleaned_line)
 
             if match_result and not is_ambiguous:
                 drug_key, info = match_result
                 dosage_str = extracted_dose if extracted_dose else info["default_dosage"]
-                when_to_take_str = cls._format_when_to_take(extracted_timing, info.get("when_to_take", {}), lang)
+                combined_time_input = f"{extracted_freq or ''} {extracted_timing or ''}".strip() or None
+                when_to_take_str = cls._format_when_to_take(combined_time_input, info.get("when_to_take", {}), lang)
                 schedule_str = info["schedule"].get(lang, info["schedule"]["english"])
+                freq_str = extracted_freq if extracted_freq else schedule_str
+                timing_str = extracted_timing if extracted_timing else when_to_take_str
+                dur_str = extracted_dur if extracted_dur else "Not specified"
 
                 # Clean display medicine name
                 display_name = cleaned_line.title()
-                # If the line was very long due to instructions, trim to concise title
                 if len(display_name.split()) > 3 and drug_key.title() in display_name:
                     display_name = drug_key.title()
                     if extracted_dose:
@@ -1413,6 +1597,9 @@ class PrescriptionService:
                         medicine_name=display_name,
                         generic_name=info["generic"],
                         dosage=dosage_str,
+                        frequency=freq_str,
+                        timing=timing_str,
+                        duration=dur_str,
                         purpose=info["purpose"].get(lang, info["purpose"]["english"]),
                         when_to_take=when_to_take_str,
                         schedule=schedule_str,
@@ -1424,48 +1611,66 @@ class PrescriptionService:
                 )
             else:
                 # Fallback for uncatalogued or ambiguous medications (flagged for safety)
-                if lang == "hindi":
-                    purpose = "चिकित्सक द्वारा आपकी स्थिति के उपचार हेतु निर्धारित विशेष औषधि।"
-                    schedule = "दिन में 1 या 2 बार — डॉक्टर के निर्देशानुसार भोजन के बाद लें।"
-                    instructions = "पानी के साथ पूरी गोली लें। डॉक्टर द्वारा निर्धारित पूरा कोर्स समाप्त करें।"
-                    when_to_take_str = "डॉक्टर या फार्मासिस्ट के निर्देशानुसार"
-                elif lang == "marathi":
-                    purpose = "तुमच्या आरोग्याच्या स्थितीनुसार डॉक्टरांनी दिलेले योग्य औषध."
-                    schedule = "दिवसातून १ किंवा २ वेळा — डॉक्टरांच्या सूचनेनुसार जेवणानंतर घ्या."
-                    instructions = "पाण्यासोबत गोळी पूर्ण घ्या. डॉक्टरांनी सांगितलेला संपूर्ण कोर्स पूर्ण करा."
-                    when_to_take_str = "डॉक्टर किंवा फार्मासिस्टच्या सल्ल्यानुसार"
-                elif lang == "gujarati":
-                    purpose = "તમારા સ્વાસ્થ્યની સ્થિતિ અનુસાર ડૉક્ટર દ્વારા સૂચવેલ યોગ્ય દવા."
-                    schedule = "દિવસમાં 1 અથવા 2 વાર — ડૉક્ટરની સલાહ મુજબ જમ્યા પછી લો."
-                    instructions = "પાણી સાથે આખી ગોળી લો. ડૉક્ટરે સૂચવેલ સંપૂર્ણ કોર્સ પૂરો કરો."
-                    when_to_take_str = "ડૉક્ટર અથવા ફાર્માસિસ્ટની સલાહ મુજબ"
+                is_legible = len(cleaned_line.strip()) >= 3 and not cleaned_line.startswith("Unable to identify") and "?" not in cleaned_line
+
+                if is_legible:
+                    display_name = cleaned_line.title()
+                    generic_name = None
+                    if lang == "hindi":
+                        purpose = "चिकित्सक द्वारा आपकी स्थिति के उपचार हेतु निर्धारित विशेष औषधि।"
+                        schedule = "दिन में 1 या 2 बार — डॉक्टर के निर्देशानुसार भोजन के बाद लें।"
+                        instructions = "पानी के साथ पूरी गोली लें। डॉक्टर द्वारा निर्धारित पूरा कोर्स समाप्त करें।"
+                        when_to_take_str = "डॉक्टर या फार्मासिस्ट के निर्देशानुसार"
+                    elif lang == "marathi":
+                        purpose = "तुमच्या आरोग्याच्या स्थितीनुसार डॉक्टरांनी दिलेले योग्य औषध."
+                        schedule = "दिवसातून १ किंवा २ वेळा — डॉक्टरांच्या सूचनेनुसार जेवणानंतर घ्या."
+                        instructions = "पाण्यासोबत गोळी पूर्ण घ्या. डॉक्टरांनी सांगितलेला संपूर्ण कोर्स पूर्ण करा."
+                        when_to_take_str = "डॉक्टर किंवा फार्मासिस्टच्या सल्ल्यानुसार"
+                    elif lang == "gujarati":
+                        purpose = "તમારા સ્વાસ્થ્યની સ્થિતિ અનુસાર ડૉક્ટર દ્વારા સૂચવેલ યોગ્ય દવા."
+                        schedule = "દિવસમાં 1 અથવા 2 વાર — ડૉક્ટરની સલાહ મુજબ જમ્યા પછી લો."
+                        instructions = "પાણી સાથે આખી ગોળી લો. ડૉક્ટરે સૂચવેલ સંપૂર્ણ કોર્સ પૂરો કરો."
+                        when_to_take_str = "ડૉક્ટર અથવા ફાર્માસિસ્ટની સલાહ મુજબ"
+                    else:
+                        purpose = "Medication prescribed by your doctor to manage and treat your diagnosed symptoms."
+                        schedule = "Take as prescribed by your physician."
+                        instructions = "Swallow with plain water. Complete the entire duration prescribed by your doctor."
+                        when_to_take_str = "As advised by doctor or pharmacist (confirm timing before taking)"
+
+                    conf_note = (
+                        "Handwriting recognition or drug catalog could not verify this medication with high confidence. "
+                        "Please confirm the exact medicine name and dosage with your pharmacist or doctor before taking."
+                    )
                 else:
-                    purpose = "Medication prescribed by your doctor to manage and treat your diagnosed symptoms."
-                    schedule = "Take as prescribed by your physician (typically 1–2 times daily after food)."
-                    instructions = "Swallow with plain water. Complete the entire duration prescribed by your doctor."
-                    when_to_take_str = "As advised by doctor or pharmacist (confirm timing before taking)"
+                    display_name = "Unable to identify medicine — please confirm with your doctor or pharmacist"
+                    generic_name = None
+                    purpose = "Unable to identify medicine with certainty. Please confirm with your doctor or pharmacist."
+                    schedule = "Not specified"
+                    instructions = "Please consult your doctor or pharmacist to confirm medicine details."
+                    when_to_take_str = "Not specified"
+                    conf_note = "Handwriting or transcription is unclear. Always verify with a healthcare professional."
 
-                if extracted_timing:
-                    when_to_take_str = f"{extracted_timing} (confirm timing with pharmacist)"
-
-                dosage_str = extracted_dose if extracted_dose else "As advised by doctor"
+                dosage_str = extracted_dose if extracted_dose else "Not specified"
+                freq_str = extracted_freq if extracted_freq else "Not specified"
+                timing_str = extracted_timing if extracted_timing else when_to_take_str
+                dur_str = extracted_dur if extracted_dur else "Not specified"
 
                 explained_items.append(
                     PrescribedMedicineItem(
-                        name=cleaned_line.title(),
-                        medicine_name=cleaned_line.title(),
-                        generic_name="Prescribed Medication",
+                        name=display_name,
+                        medicine_name=display_name,
+                        generic_name=generic_name,
                         dosage=dosage_str,
+                        frequency=freq_str,
+                        timing=timing_str,
+                        duration=dur_str,
                         purpose=purpose,
-                        when_to_take=when_to_take_str,
-                        schedule=schedule,
+                        when_to_take=timing_str,
+                        schedule=freq_str,
                         instructions=instructions,
                         precautions="Always consult your pharmacist or doctor if you experience unusual side effects.",
                         needs_confirmation=True,
-                        confidence_note=(
-                            "Handwriting recognition or drug catalog could not verify this medication with high confidence. "
-                            "Please confirm the exact medicine name and dosage with your pharmacist or doctor before taking."
-                        ),
+                        confidence_note=conf_note,
                     )
                 )
 

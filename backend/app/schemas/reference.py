@@ -140,6 +140,7 @@ class AnalysisResultSchema(BaseModel):
     numeric_value: Optional[float] = None
     original_value_text: Optional[str] = None
     unit: Optional[str] = None
+    normalized_value: Optional[float] = None
     normalized_unit: Optional[str] = None
     classification: Optional[str] = Field(
         default=None,

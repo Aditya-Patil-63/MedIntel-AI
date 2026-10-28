@@ -69,6 +69,38 @@ void main() {
       expect(find.text('CRITICAL'), findsOneWidget);
     });
 
+    testWidgets('ReferenceFindingsCard renders Indian laboratory units with Normal classification', (tester) async {
+      const resp = BatchAnalysisResponse(
+        totalSubmitted: 1,
+        totalClassified: 1,
+        results: [
+          AnalysisResult(
+            originalTestName: 'Platelet Count',
+            canonicalName: 'Platelet Count',
+            numericValue: 2.33,
+            unit: 'Lakhs/cumm',
+            classification: AnalyteClassification.normal,
+            analysisStatus: 'SUCCESS',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ReferenceFindingsCard(response: resp),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Laboratory Reference Findings'), findsOneWidget);
+      expect(find.textContaining('Platelet Count'), findsOneWidget);
+      expect(find.textContaining('2.33 Lakhs/cumm'), findsOneWidget);
+      expect(find.text('NORMAL'), findsOneWidget);
+    });
+
     testWidgets('MLRiskCard renders risk probability and band when OK', (tester) async {
       const resp = RiskPredictionResponse(
         condition: 'diabetes',
@@ -123,7 +155,7 @@ void main() {
       expect(find.text('Heart Disease Risk Model'), findsOneWidget);
       expect(find.text('INSUFFICIENT DATA'), findsOneWidget);
       expect(find.textContaining('Insufficient features for complete ML assessment'), findsOneWidget);
-      expect(find.textContaining('chol, trestbps, thalach'), findsOneWidget);
+      expect(find.textContaining('Serum Cholesterol, Resting Blood Pressure, Maximum Heart Rate'), findsOneWidget);
       // Ensures no misleading percentage is rendered
       expect(find.textContaining('%'), findsNothing);
     });

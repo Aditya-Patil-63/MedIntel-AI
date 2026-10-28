@@ -15,7 +15,7 @@ from app.api.health import router as health_router
 from app.api.ml_risk import router as ml_risk_router
 from app.api.prescriptions import router as prescriptions_router
 from app.api.reference import router as reference_router
-from app.api.reports import router as reports_router
+from app.api.reports import history_router, router as reports_router
 from app.core.config import settings
 from app.db.session import create_tables
 
@@ -58,6 +58,7 @@ def create_app() -> FastAPI:
     application.include_router(health_router)
     application.include_router(auth_router)
     application.include_router(reports_router)
+    application.include_router(history_router)
     application.include_router(extraction_router)
     application.include_router(reference_router)
     application.include_router(ml_risk_router)

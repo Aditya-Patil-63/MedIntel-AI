@@ -18,7 +18,7 @@ class ApiConstants {
   );
 
   // Timeouts
-  static const Duration connectTimeout = Duration(seconds: 15);
+  static const Duration connectTimeout = Duration(seconds: 5);
   static const Duration receiveTimeout = Duration(seconds: 45);
   static const Duration sendTimeout = Duration(seconds: 30);
 
@@ -46,4 +46,7 @@ class ApiConstants {
   static const String prescriptionExplain = '/api/v1/prescriptions/explain';
   static const String prescriptionExtractAndExplain =
       '/api/v1/prescriptions/extract-and-explain';
+  static const String prescriptionHistory =
+      '/api/v1/prescriptions/history';
+  static const String history = '/api/v1/history';
 }

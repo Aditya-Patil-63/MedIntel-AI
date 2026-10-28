@@ -20,6 +20,60 @@ class MLRiskCard extends StatelessWidget {
     this.onRetry,
   });
 
+  static const Map<String, String> _friendlyFeatureNames = {
+    // Diabetes
+    'Pregnancies': 'Pregnancies',
+    'Glucose': 'Plasma Glucose',
+    'BloodPressure': 'Diastolic Blood Pressure',
+    'SkinThickness': 'Triceps Skin Fold Thickness',
+    'Insulin': 'Serum Insulin',
+    'BMI': 'Body Mass Index (BMI)',
+    'DiabetesPedigreeFunction': 'Diabetes Family History Score',
+    'Age': 'Age',
+    // Heart Disease
+    'age': 'Age',
+    'sex': 'Gender',
+    'cp': 'Chest Pain Type',
+    'trestbps': 'Resting Blood Pressure',
+    'chol': 'Serum Cholesterol',
+    'fbs': 'Fasting Blood Sugar',
+    'restecg': 'Resting ECG',
+    'thalach': 'Maximum Heart Rate',
+    'exang': 'Exercise Angina',
+    'oldpeak': 'ST Depression',
+    'slope': 'ST Segment Slope',
+    'ca': 'Major Vessels (Fluoroscopy)',
+    'thal': 'Thalassemia Indicator',
+    // Chronic Kidney Disease
+    'bp': 'Blood Pressure',
+    'sg': 'Specific Gravity (Urine)',
+    'al': 'Albumin (Urine)',
+    'su': 'Sugar (Urine)',
+    'rbc': 'Red Blood Cells',
+    'pc': 'Pus Cells',
+    'pcc': 'Pus Cell Clumps',
+    'ba': 'Bacteria',
+    'bgr': 'Blood Glucose Random',
+    'bu': 'Blood Urea',
+    'sc': 'Serum Creatinine',
+    'sod': 'Sodium',
+    'pot': 'Potassium',
+    'hemo': 'Hemoglobin',
+    'pcv': 'Packed Cell Volume (Hematocrit)',
+    'wc': 'White Blood Cell Count',
+    'rc': 'Red Blood Cell Count',
+    'htn': 'Hypertension',
+    'dm': 'Diabetes Mellitus',
+    'cad': 'Coronary Artery Disease',
+    'appet': 'Appetite',
+    'pe': 'Pedal Edema',
+    'ane': 'Anemia',
+  };
+
+  static String _formatFeatureName(String raw) {
+    return _friendlyFeatureNames[raw] ?? raw;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -218,16 +272,17 @@ class MLRiskCard extends StatelessWidget {
             if (missing.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(
-                'Missing features: ${missing.join(", ")}',
+                'Not tested in this report: ${missing.map(_formatFeatureName).join(", ")}',
                 style: const TextStyle(
                   fontSize: 11,
                   color: AppColors.textSecondary,
+                  height: 1.35,
                 ),
               ),
             ],
             const SizedBox(height: 6),
             const Text(
-              'Note: In accordance with clinical safety rules, missing features are never fabricated or guessed.',
+              'Note: These parameters were not part of the uploaded laboratory panel. In accordance with clinical safety rules, missing features are never fabricated or guessed.',
               style: TextStyle(
                 fontSize: 10,
                 color: AppColors.textMuted,

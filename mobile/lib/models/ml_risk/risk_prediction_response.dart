@@ -53,6 +53,17 @@ class RiskPredictionResponse extends Equatable {
     );
   }
 
+  /// Whether the risk calculation succeeded and contains a probability value.
+  bool get isSuccess =>
+      (status.toLowerCase() == 'ok' || status.toLowerCase() == 'success') &&
+      riskProbability != null;
+
+  /// Human-readable percentage string (e.g. "35.0%") or 'N/A'.
+  String get formattedProbability =>
+      riskProbability != null
+          ? '${(riskProbability! * 100).toStringAsFixed(1)}%'
+          : 'N/A';
+
   Map<String, dynamic> toJson() => {
         'condition': condition,
         'status': status,

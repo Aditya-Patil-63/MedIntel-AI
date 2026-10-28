@@ -282,6 +282,7 @@ def get_default_registry() -> ReferenceRangeRegistry:
             canonical_name="White Blood Cell Count",
             aliases=[
                 "wbc",
+                "wbc count",
                 "tlc",
                 "total leukocyte count",
                 "white blood cells",

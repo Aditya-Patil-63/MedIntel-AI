@@ -53,7 +53,7 @@ void main() {
     expect(find.text('Upload Report'), findsOneWidget);
     expect(find.text('User Verification Gate'), findsOneWidget);
     expect(find.text('Analysis & ML Risk'), findsOneWidget);
-    expect(find.text('Report History'), findsOneWidget);
+    expect(find.text('History'), findsWidgets);
   });
 
   testWidgets('UploadScreen displays file constraints and browse button',
@@ -114,7 +114,6 @@ void main() {
 
     expect(find.byType(ResultsScreen), findsOneWidget);
     expect(find.text('Statistical Disease Risk Indicators'), findsOneWidget);
-    expect(find.textContaining('This is not a medical diagnosis'),
-        findsWidgets);
+    expect(find.text('Clinical Summary Overview'), findsOneWidget);
   });
 }

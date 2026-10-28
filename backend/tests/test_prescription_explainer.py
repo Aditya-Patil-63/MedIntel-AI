@@ -301,3 +301,77 @@ class TestPrescriptionExplainer:
             # Column 4: When to Take
             assert med["when_to_take"] and len(med["when_to_take"].strip()) > 0
 
+    def test_prescription_history_lifecycle(self, client: TestClient):
+        """Verify saving, retrieving, deduplicating, and deleting prescription history records."""
+        import uuid
+        s = uuid.uuid4().hex[:8]
+        reg_res = client.post(
+            "/api/v1/auth/register",
+            json={"name": "Rx Patient", "email": f"rx_{s}@example.com", "password": "Password123!"},
+        )
+        assert reg_res.status_code == 201
+        token = reg_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 1. Initial history is empty
+        hist_res = client.get("/api/v1/prescriptions/history", headers=headers)
+        assert hist_res.status_code == 200
+        assert hist_res.json() == []
+
+        # 2. Save a prescription to history
+        rx_payload = {
+            "title": "Prescription - Paracetamol, Amoxicillin",
+            "document_name": "Clinic_Prescription.jpg",
+            "doctor_name": "Dr. Sarah Rao",
+            "medicines": [
+                {
+                    "name": "Paracetamol 650mg",
+                    "dosage": "650 mg",
+                    "when_to_take": "After meals",
+                    "purpose": "Fever and mild pain relief",
+                },
+                {
+                    "name": "Amoxicillin 500mg",
+                    "dosage": "500 mg",
+                    "when_to_take": "Twice daily after meals",
+                    "purpose": "Bacterial infection treatment",
+                },
+            ],
+            "general_guidance": "Complete full antibiotic course.",
+            "questions_for_doctor": ["Can I take with milk?"],
+            "language": "english",
+        }
+        save_res = client.post("/api/v1/prescriptions/history", json=rx_payload, headers=headers)
+        assert save_res.status_code == 201
+        saved_data = save_res.json()
+        assert "id" in saved_data
+        assert saved_data["type"] == "prescription"
+        assert len(saved_data["medicines"]) == 2
+        rx_id = saved_data["id"]
+
+        # 3. Fetch history again — contains 1 record
+        fetch_res = client.get("/api/v1/prescriptions/history", headers=headers)
+        assert fetch_res.status_code == 200
+        items = fetch_res.json()
+        assert len(items) == 1
+        assert items[0]["id"] == rx_id
+        assert items[0]["title"] == "Prescription - Paracetamol, Amoxicillin"
+
+        # 4. Save again with same ID (e.g. reopened/viewed) — updates timestamp, prevents duplicates
+        reopened_payload = dict(saved_data)
+        reopened_res = client.post("/api/v1/prescriptions/history", json=reopened_payload, headers=headers)
+        assert reopened_res.status_code == 201
+        assert reopened_res.json()["id"] == rx_id
+
+        # Verify still only 1 item (deduplication worked)
+        fetch_res2 = client.get("/api/v1/prescriptions/history", headers=headers)
+        assert len(fetch_res2.json()) == 1
+
+        # 5. Delete prescription
+        del_res = client.delete(f"/api/v1/prescriptions/history/{rx_id}", headers=headers)
+        assert del_res.status_code == 200
+
+        # Verify history is empty again
+        fetch_res3 = client.get("/api/v1/prescriptions/history", headers=headers)
+        assert len(fetch_res3.json()) == 0
+

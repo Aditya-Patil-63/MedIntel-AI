@@ -750,8 +750,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: _buildActionTile(
                 context,
-                title: 'Report History',
-                subtitle: 'Past reports',
+                title: 'History',
+                subtitle: 'Past records',
                 icon: Icons.history_rounded,
                 iconColor: const Color(0xFF7C3AED),
                 bgColor: const Color(0xFFF5F3FF),

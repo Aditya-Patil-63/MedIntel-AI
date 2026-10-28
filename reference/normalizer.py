@@ -12,7 +12,7 @@ Safety Guarantees:
 """
 
 import re
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 
 class AnalyteNormalizer:
@@ -75,6 +75,59 @@ class AnalyteNormalizer:
         "mm hg": "mmHg",
         "/min": "/min",
         "bpm": "bpm",
+        "lakhs/cumm": "Lakhs/cumm",
+        "lakh/cumm": "Lakhs/cumm",
+        "lacs/cumm": "Lakhs/cumm",
+        "lac/cumm": "Lakhs/cumm",
+        "lakhs/ul": "Lakhs/cumm",
+        "lakh/ul": "Lakhs/cumm",
+        "lacs/ul": "Lakhs/cumm",
+        "lac/ul": "Lakhs/cumm",
+        "lakhs": "Lakhs/cumm",
+        "lakh": "Lakhs/cumm",
+        "lac": "Lakhs/cumm",
+        "lacs": "Lakhs/cumm",
+    }
+
+    # Authoritative, certified clinical unit conversion factors:
+    # (canonical_analyte, normalized_source_unit, normalized_target_unit) -> conversion_factor
+    # such that: target_value = source_value * conversion_factor
+    UNIT_CONVERSIONS: Dict[Tuple[str, str, str], float] = {
+        # Platelet Count:
+        # Reference unit is 'cells/uL'
+        # In Indian labs: 1 Lakh/cumm = 100,000 cells/uL (since 1 cumm = 1 mm3 = 1 uL)
+        ("Platelet Count", "lakhs/cumm", "cells/ul"): 100000.0,
+        ("Platelet Count", "lakh/cumm", "cells/ul"): 100000.0,
+        ("Platelet Count", "lacs/cumm", "cells/ul"): 100000.0,
+        ("Platelet Count", "lac/cumm", "cells/ul"): 100000.0,
+        ("Platelet Count", "lakhs/ul", "cells/ul"): 100000.0,
+        ("Platelet Count", "lakh/ul", "cells/ul"): 100000.0,
+        ("Platelet Count", "lacs/ul", "cells/ul"): 100000.0,
+        ("Platelet Count", "lac/ul", "cells/ul"): 100000.0,
+        ("Platelet Count", "lakhs", "cells/ul"): 100000.0,
+        ("Platelet Count", "lakh", "cells/ul"): 100000.0,
+        ("Platelet Count", "lac", "cells/ul"): 100000.0,
+        ("Platelet Count", "lacs", "cells/ul"): 100000.0,
+        ("Platelet Count", "10^5/cumm", "cells/ul"): 100000.0,
+        ("Platelet Count", "10^5/ul", "cells/ul"): 100000.0,
+        ("Platelet Count", "10^3/ul", "cells/ul"): 1000.0,
+        ("Platelet Count", "k/ul", "cells/ul"): 1000.0,
+        ("Platelet Count", "x10^3/ul", "cells/ul"): 1000.0,
+        ("Platelet Count", "thou/ul", "cells/ul"): 1000.0,
+        ("Platelet Count", "10^9/l", "cells/ul"): 1000.0,
+
+        # White Blood Cell Count:
+        ("White Blood Cell Count", "10^3/ul", "cells/ul"): 1000.0,
+        ("White Blood Cell Count", "k/ul", "cells/ul"): 1000.0,
+        ("White Blood Cell Count", "x10^3/ul", "cells/ul"): 1000.0,
+        ("White Blood Cell Count", "thou/ul", "cells/ul"): 1000.0,
+        ("White Blood Cell Count", "lakhs/cumm", "cells/ul"): 100000.0,
+        ("White Blood Cell Count", "lakh/cumm", "cells/ul"): 100000.0,
+        ("White Blood Cell Count", "10^9/l", "cells/ul"): 1000.0,
+
+        # Hemoglobin:
+        ("Hemoglobin", "g/l", "g/dl"): 0.1,
+        ("Hemoglobin", "gm/l", "g/dl"): 0.1,
     }
 
     def __init__(self) -> None:
@@ -168,3 +221,38 @@ class AnalyteNormalizer:
             return False
         clean_val = value_str.strip().lower()
         return clean_val in cls.QUALITATIVE_TERMS
+
+    @classmethod
+    def convert_unit(
+        cls,
+        canonical_name: Optional[str],
+        value: Optional[float],
+        from_unit: Optional[str],
+        to_unit: Optional[str],
+    ) -> Optional[float]:
+        """
+        Convert a numerical value from a source unit to the authoritative reference unit
+        using certified medical conversion tables.
+
+        Returns:
+            Converted numerical value if an authoritative conversion rule is registered,
+            or None if the units cannot be safely converted.
+        """
+        if canonical_name is None or value is None or not from_unit or not to_unit:
+            return None
+
+        clean_from = re.sub(r"\s+", "", from_unit.strip().lower())
+        clean_to = re.sub(r"\s+", "", to_unit.strip().lower())
+
+        # If already equivalent, factor is 1.0
+        if cls.are_units_compatible(from_unit, to_unit):
+            return float(value)
+
+        # Lookup in certified unit conversion table
+        key = (canonical_name, clean_from, clean_to)
+        if key in cls.UNIT_CONVERSIONS:
+            factor = cls.UNIT_CONVERSIONS[key]
+            return round(value * factor, 4)
+
+        return None
+

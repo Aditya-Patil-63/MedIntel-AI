@@ -52,19 +52,6 @@ class _StructuredMedicalTableState extends State<StructuredMedicalTable> {
         // 2. Section Header & View Toggle
         Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.table_chart_rounded,
-                color: AppColors.primary,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 10),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,22 +135,6 @@ class _StructuredMedicalTableState extends State<StructuredMedicalTable> {
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                   color: AppColors.primaryDark,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE0F2FE),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'Objective 3 Spec',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0369A1),
-                  ),
                 ),
               ),
             ],

@@ -181,7 +181,7 @@ def mock_gemini_response_payload():
 def test_a_gemini_config_loads_without_printing_key():
     """Verify Gemini configuration loaded without exposing raw secret key."""
     assert settings.GENAI_PROVIDER in {"mock", "gemini"}
-    assert settings.GEMINI_MODEL == "gemini-3.8-flash"
+    assert settings.GEMINI_MODEL in {"gemini-3.5-flash-lite", "gemini-3.8-flash"}
     assert settings.GEMINI_TIMEOUT_SECONDS > 0
     assert settings.GEMINI_MAX_OUTPUT_TOKENS > 0
 
@@ -189,7 +189,7 @@ def test_a_gemini_config_loads_without_printing_key():
     provider = GeminiProvider(api_key="mock_secret_key_12345")
     assert "mock_secret_key_12345" not in repr(provider)
     assert provider.provider_name == "gemini"
-    assert provider.model_name == "gemini-3.8-flash"
+    assert provider.model_name == settings.GEMINI_MODEL
 
 
 # ---------------------------------------------------------------------------
@@ -259,7 +259,7 @@ def test_d_verified_request_dispatches_to_gemini(test_db_and_client, sample_expl
         data = resp.json()
         assert data["status"] == "SUCCESS"
         assert data["model_provider"] == "gemini"
-        assert data["model_name"] == "gemini-3.8-flash"
+        assert data["model_name"] == settings.GEMINI_MODEL
         assert data["explanation"] is not None
         assert data["explanation"]["findings"][0]["observed_value"] == "140.0 mg/dL"
         assert data["explanation"]["findings"][0]["classification"] == "HIGH"
@@ -454,7 +454,7 @@ def test_k_gemini_status_endpoint_reports_health(test_db_and_client):
         assert resp.status_code == 200
         data = resp.json()
         assert data["provider"] == "gemini"
-        assert data["model"] == "gemini-3.8-flash"
+        assert data["model"] == settings.GEMINI_MODEL
         assert data["available"] is True
         assert data["mode"] == "live_gemini_api"
         assert data["network_required"] is True

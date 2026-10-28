@@ -5,7 +5,6 @@ import '../../state/analysis/analysis_cubit.dart';
 import '../../state/document/document_cubit.dart';
 import '../../state/document/document_state.dart';
 import '../../state/verification/verification_cubit.dart';
-import '../prescription/prescription_explainer_screen.dart';
 import '../results/results_screen.dart';
 import '../verification/verification_screen.dart';
 
@@ -31,58 +30,9 @@ class UploadScreen extends StatelessWidget {
             children: [
               // 1. 3-Step Guided Progress Tracker
               _buildStepTracker(currentStep: 1),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-              // Objective 2 Prescription Switcher
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PrescriptionExplainerScreen(),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDFA),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF99F6E4)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.medication_liquid_rounded, size: 20, color: AppColors.primary),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Have a Doctor\'s Prescription Instead?',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryDark,
-                              ),
-                            ),
-                            Text(
-                              'Tap here to decipher handwriting & view medicine timings (Objective 2)',
-                              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.primary),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // 3. Supported Formats Badge
+              // 2. Supported Formats Badge
               Container(
                 width: double.infinity,
                 padding:
@@ -308,7 +258,7 @@ class UploadScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Choose a lab report or prescription to extract test values.\nYour file is processed safely on your local server.',
+            'Upload a medical report to extract and analyze your test results.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.textSecondary,
@@ -316,55 +266,55 @@ class UploadScreen extends StatelessWidget {
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 28),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 280),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.folder_open_rounded, size: 20),
-                  label: const Text('Browse Files'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+          const SizedBox(height: 24),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 280),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.folder_open_rounded, size: 20),
+                label: const Text('Browse Files'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  onPressed: () =>
-                      context.read<DocumentCubit>().pickAndProcessDocument(),
                 ),
+                onPressed: () =>
+                    context.read<DocumentCubit>().pickAndProcessDocument(),
               ),
             ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              icon: const Icon(Icons.edit_note_rounded, size: 18),
-              label: const Text(
-                "Don't have a report? Enter values manually →",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const VerificationScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Next: You will review & confirm extracted values',
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            icon: const Icon(Icons.edit_note_rounded, size: 18),
+            label: const Text(
+              "Don't have a report? Enter values manually →",
               style: TextStyle(
-                fontSize: 11,
-                color: AppColors.textMuted,
-                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
               ),
             ),
-          ],
-        ),
-      );
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const VerificationScreen()),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Next: You will review & confirm extracted values',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
     }
 
   Widget _buildProcessingState(DocumentState state) {
@@ -586,20 +536,23 @@ class UploadScreen extends StatelessWidget {
         ),
         const SizedBox(height: 20),
 
-        // Action Buttons (Objective 3: Automated Zero-Manual-Entry Analysis Pipeline)
+        // Action Buttons
         SizedBox(
           width: double.infinity,
+          height: 50,
           child: ElevatedButton.icon(
-            icon: const Icon(Icons.auto_awesome_rounded),
+            icon: const Icon(Icons.auto_awesome_rounded, size: 20),
             label: const Text(
-              'Auto-Analyze Report (Instant)',
+              'Auto-Analyze Report',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              elevation: 2,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () async {
               showDialog(
@@ -660,18 +613,25 @@ class UploadScreen extends StatelessWidget {
             },
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
+          height: 48,
           child: OutlinedButton.icon(
             icon: const Icon(Icons.tune_rounded, size: 18),
             label: const Text(
-              'Review & Verify Measurements (Optional)',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              'Review & Verify Measurements',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
             style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.divider, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               context
@@ -686,14 +646,18 @@ class UploadScreen extends StatelessWidget {
             },
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: TextButton.icon(
-            icon: const Icon(Icons.upload_file_outlined, size: 18),
-            label: const Text('Upload a Different Report'),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text(
+              'Upload a Different Report',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
             ),
             onPressed: () =>
                 context.read<DocumentCubit>().pickAndProcessDocument(),
