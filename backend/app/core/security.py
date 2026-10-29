@@ -25,7 +25,28 @@ from app.models.models import User
 logger = logging.getLogger("medintel.security")
 
 # Secret key for HMAC token signing
-_AUTH_SECRET_KEY = getattr(settings, "SECRET_KEY", "medintel-ai-secure-jwt-secret-key-2026")
+_DEV_FALLBACK_SECRET = "medintel-ai-secure-jwt-secret-key-2026"
+
+
+def _resolve_secret_key() -> str:
+    """Resolve and enforce cryptographic signing key constraints.
+
+    In development and testing, permits the fallback key.
+    In production (APP_ENV == 'production'), strictly mandates a secure secret key
+    of at least 32 characters that differs from the default development key.
+    """
+    secret = (getattr(settings, "SECRET_KEY", None) or _DEV_FALLBACK_SECRET).strip()
+    if getattr(settings, "APP_ENV", "development") == "production":
+        if not secret or len(secret) < 32 or secret == _DEV_FALLBACK_SECRET:
+            raise RuntimeError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: "
+                "In production (APP_ENV=production), SECRET_KEY must be provided via environment, "
+                "must be at least 32 characters long, and must not match the insecure development default."
+            )
+    return secret
+
+
+_AUTH_SECRET_KEY = _resolve_secret_key()
 
 
 def hash_password(password: str) -> str:

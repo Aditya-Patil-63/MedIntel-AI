@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_colors.dart';
-import '../../state/auth/auth_cubit.dart';
 import '../../state/history/history_cubit.dart';
 import '../../state/history/history_state.dart';
 import '../history/history_screen.dart';
 import '../prescription/prescription_explainer_screen.dart';
-import '../results/results_screen.dart';
 import '../settings/settings_screen.dart';
 import '../upload/upload_screen.dart';
-import '../verification/verification_screen.dart';
 
 /// Redesigned production-grade Home Dashboard for MedIntel AI.
 ///
@@ -61,10 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 0. User Welcome Header
-              _buildUserWelcome(context),
-
-              // 1. Clinical Quick Actions (2x2 Grid)
+              // 1. Clinical Quick Actions
               _buildQuickActionsGrid(context),
               const SizedBox(height: 18),
 
@@ -116,74 +110,6 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Settings',
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildUserWelcome(BuildContext context) {
-    final user = context.watch<AuthCubit>().currentUser;
-    if (user == null) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.divider),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              child: Text(
-                user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome, ${user.name}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    user.email,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.textSecondary),
-              tooltip: 'Sign Out',
-              onPressed: () {
-                context.read<AuthCubit>().logout();
-                context.read<HistoryCubit>().clearHistory();
-              },
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -652,36 +578,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'OBJECTIVE 2',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'Prescription Explainer',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ],
+                          const Text(
+                            'Prescription Explainer',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                           const SizedBox(height: 3),
                           const Text(
@@ -716,34 +619,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 iconColor: AppColors.primary,
                 bgColor: AppColors.primarySurface,
                 destination: const UploadScreen(),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildActionTile(
-                context,
-                title: 'User Verification Gate',
-                subtitle: 'Review values',
-                icon: Icons.verified_user_outlined,
-                iconColor: AppColors.secondary,
-                bgColor: AppColors.secondarySurface,
-                destination: const VerificationScreen(),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionTile(
-                context,
-                title: 'Analysis & ML Risk',
-                subtitle: 'Health models',
-                icon: Icons.analytics_outlined,
-                iconColor: const Color(0xFF2563EB),
-                bgColor: const Color(0xFFEFF6FF),
-                destination: const ResultsScreen(),
               ),
             ),
             const SizedBox(width: 10),

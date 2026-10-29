@@ -1,6 +1,12 @@
 # Git
 .git
 .gitignore
+.gitattributes
+
+# Environment & Secrets (NEVER bake secrets into images)
+**/.env
+**/.env.*
+!**/.env.example
 
 # Python virtual environments & bytecode
 __pycache__/
@@ -14,11 +20,36 @@ ENV/
 env/
 .venv/
 
-# Caches & Test artifacts
+# Test artifacts & developer scripts
 .pytest_cache/
 .coverage
 htmlcov/
 *.log
+tests/
+backend/tests/
+scripts/
+
+# Mobile (Flutter client packaged separately)
+mobile/
+
+# Documentation & non-runtime assets
+docs/
+reports/*.pdf
+tmp/
+scratch/
+
+# Local databases & SQLite files
+*.db
+*.db-wal
+*.db-shm
+medintel.db
+database/*.db
+
+# Heavy models, checkpoints, and handwriting module (not run on 512MB container)
+handwriting/
+checkpoints/
+model_cache/
+ml_models_local/
 
 # IDE & OS
 .idea/
@@ -26,12 +57,3 @@ htmlcov/
 *.swp
 .DS_Store
 Thumbs.db
-
-# Mobile (Flutter client packaged separately)
-mobile/
-
-# Documentation & large artifacts
-docs/
-reports/*.pdf
-tmp/
-scratch/

@@ -6,6 +6,7 @@ pdfplumber and OCR engines, and returns consolidated DocumentExtractionResult.
 MedIntel AI — Phase 4: PDF & OCR Pipeline
 """
 
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -19,6 +20,8 @@ from ocr.models import (
     PageExtraction,
     SourceType,
 )
+
+logger = logging.getLogger(__name__)
 from ocr.ocr_engine import (
     BaseOCREngine,
     DocumentSizeExceededError,
@@ -38,11 +41,13 @@ class DocumentProcessor:
     ALLOWED_PDF_EXTENSIONS = {".pdf"}
     ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".webp"}
     DEFAULT_MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+    DEFAULT_MAX_OCR_PAGES = 10
 
     def __init__(
         self,
         default_ocr_engine: str = "tesseract",
         max_file_size_bytes: int = DEFAULT_MAX_SIZE_BYTES,
+        max_ocr_pages: int = DEFAULT_MAX_OCR_PAGES,
     ):
         """
         Initialize the DocumentProcessor.
@@ -50,9 +55,11 @@ class DocumentProcessor:
         Args:
             default_ocr_engine: Default OCR engine name ('tesseract' or 'easyocr').
             max_file_size_bytes: Maximum allowed document size in bytes.
+            max_ocr_pages: Maximum pages to render and OCR from scanned PDFs (default 10).
         """
         self.default_ocr_engine_name = default_ocr_engine.lower()
         self.max_file_size_bytes = max_file_size_bytes
+        self.max_ocr_pages = max_ocr_pages
         self.pdf_extractor = PDFExtractor()
         self._custom_ocr_engines: Dict[str, BaseOCREngine] = {}
 
@@ -257,8 +264,18 @@ class DocumentProcessor:
         try:
             with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
                 total_pages = len(pdf.pages)
-                for page_idx in range(total_pages):
+                pages_to_process = min(total_pages, self.max_ocr_pages)
+                if total_pages > self.max_ocr_pages:
+                    cap_warning = (
+                        f"Scanned PDF has {total_pages} pages; capping OCR rendering to first "
+                        f"{self.max_ocr_pages} pages to prevent memory exhaustion."
+                    )
+                    logger.warning(cap_warning)
+                    warnings.append(cap_warning)
+
+                for page_idx in range(pages_to_process):
                     page_num = page_idx + 1
+                    pil_img = None
                     try:
                         pil_img = self.pdf_extractor.render_page_to_image(
                             pdf_bytes, page_number=page_num
@@ -278,6 +295,12 @@ class DocumentProcessor:
                             )
                         )
                         confidences.append(0.0)
+                    finally:
+                        if pil_img is not None:
+                            try:
+                                pil_img.close()
+                            except Exception:
+                                pass
 
             full_text = "\n\n".join(p.text for p in pages if p.text.strip())
             avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0

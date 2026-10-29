@@ -1,0 +1,38 @@
+# ==============================================================================
+# Render Blueprint Specification for MedIntel AI Backend
+# Free-tier Docker Web Service with Neon Postgres connection
+# ==============================================================================
+
+services:
+  - type: web
+    name: medintel-backend
+    env: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Public defaults
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: GENAI_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
+      - key: DEFAULT_OCR_ENGINE
+        value: tesseract
+      - key: MEDINTEL_ML_MODELS_DIR
+        value: /app/deploy/ml_models
+
+      # Secret environment variables (enter in Render dashboard)
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

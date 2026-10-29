@@ -159,9 +159,9 @@ class ApiServiceImpl implements ApiService {
       if (unwrapped is NetworkException) {
         final currentBase = _dio.options.baseUrl;
         final candidates = [
-          ApiConstants.emulatorUrl,
           ApiConstants.usbDeviceUrl,
           ApiConstants.wifiLanUrl,
+          ApiConstants.emulatorUrl,
         ];
         for (final alt in candidates) {
           if (alt == currentBase) continue;

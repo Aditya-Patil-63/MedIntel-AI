@@ -20,6 +20,9 @@ build/
 
 # ----- ML artifacts -----
 *.joblib
+!deploy/ml_models/
+!deploy/ml_models/**/pipeline.joblib
+!deploy/ml_models/**/model_metadata.json
 *.pkl
 *.h5
 *.hdf5
@@ -77,9 +80,10 @@ desktop.ini
 # ----- Logs -----
 *.log
 
-# ----- Temporary files -----
+# ----- Temporary files & local dev scripts -----
 *.tmp
 *.temp
+scripts/keep_adb_reverse.py
 
 # ----- Generated reports -----
 reports/generated_summaries/

@@ -340,10 +340,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 4. Navigate back to Home and open Verification Screen
-      Navigator.of(tester.element(find.byType(UploadScreen))).pop();
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('User Verification Gate'));
+      // 4. Navigate to Verification Screen
+      Navigator.of(tester.element(find.byType(UploadScreen))).push(
+        MaterialPageRoute(builder: (_) => const VerificationScreen()),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(VerificationScreen), findsOneWidget);
 
@@ -401,7 +401,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // 12. Open ResultsScreen again and test "Start New Analysis"
-      await tester.tap(find.text('Analysis & ML Risk'));
+      Navigator.of(tester.element(find.byType(HomeScreen))).push(
+        MaterialPageRoute(builder: (_) => const ResultsScreen()),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(ResultsScreen), findsOneWidget);
 

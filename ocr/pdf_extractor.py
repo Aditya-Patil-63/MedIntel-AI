@@ -6,6 +6,7 @@ MedIntel AI — Phase 4: PDF & OCR Pipeline
 """
 
 from io import BytesIO
+import logging
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 import pdfplumber
@@ -14,12 +15,17 @@ from PIL import Image
 from ocr.models import PageExtraction
 from ocr.ocr_engine import InvalidDocumentError
 
+logger = logging.getLogger(__name__)
+
 
 class PDFExtractor:
     """Extracts text and metadata from digital/native PDF documents using pdfplumber."""
 
     # Threshold for considering a PDF page as scanned/empty (under 20 characters of extractable text)
     MIN_DIGITAL_TEXT_CHARS_PER_PAGE = 20
+
+    # Maximum recommended pages to render to image to protect 512MB RAM budget
+    MAX_RENDER_PAGES = 10
 
     def extract_from_pdf(
         self,
@@ -131,6 +137,13 @@ class PDFExtractor:
             PIL Image of the rendered page.
         """
         try:
+            if page_number > self.MAX_RENDER_PAGES:
+                logger.warning(
+                    "Rendering PDF page %d exceeds recommended maximum of %d pages for low-memory environments.",
+                    page_number,
+                    self.MAX_RENDER_PAGES,
+                )
+
             if isinstance(pdf_source, (bytes, bytearray)):
                 pdf_file = BytesIO(pdf_source)
             elif isinstance(pdf_source, BytesIO):

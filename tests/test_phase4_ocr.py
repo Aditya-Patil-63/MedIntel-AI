@@ -414,3 +414,41 @@ class TestExtractionEndpoint:
         assert "prediction" not in data
         assert "treatment" not in data
         assert "risk_score" not in data
+
+    def test_scanned_pdf_rendering_capped_to_max_pages(self):
+        """Scanned PDF rendering must cap at max_ocr_pages to protect 512MB RAM budget."""
+        pdf_bytes = make_synthetic_pdf([""] * 12)
+        processor = DocumentProcessor(max_ocr_pages=5)
+
+        mock_engine = MagicMock(spec=BaseOCREngine)
+        mock_engine.is_available.return_value = True
+        mock_engine.get_engine_name.return_value = "mock"
+        mock_engine.extract_from_image.return_value = PageExtraction(
+            page_number=1, text="Mock text", confidence=0.9, char_count=9, word_count=2
+        )
+        processor.register_ocr_engine("mock", mock_engine)
+
+        with patch.object(processor.pdf_extractor, "render_page_to_image", return_value=Image.new("RGB", (10, 10))):
+            result = processor.process_document(
+                pdf_bytes, "multi_page_scan.pdf", engine_name="mock", force_ocr_on_pdf=True
+            )
+
+        assert len(result.pages) == 5
+        assert any("capping OCR rendering to first 5 pages" in w for w in result.warnings)
+
+    def test_tesseract_adapter_timeout_safeguard(self):
+        """Tesseract OCR calls must enforce timeout and raise OCRError on hanging execution."""
+        from ocr.ocr_engine import OCRError
+
+        adapter = TesseractAdapter(timeout=5)
+
+        with patch.object(adapter, "is_available", return_value=True):
+            with patch(
+                "ocr.tesseract_adapter.pytesseract.image_to_data",
+                side_effect=RuntimeError("Tesseract process timeout"),
+            ):
+                dummy_img = Image.new("RGB", (20, 20), color="white")
+                with pytest.raises(OCRError) as exc_info:
+                    adapter.extract_from_image(dummy_img)
+                assert "timed out after 5 seconds" in str(exc_info.value)
+

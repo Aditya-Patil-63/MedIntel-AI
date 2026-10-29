@@ -1,7 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medintel_mobile/app.dart';
 import 'package:medintel_mobile/models/auth/user_model.dart';
 import 'package:medintel_mobile/screens/auth/login_screen.dart';
+import 'package:medintel_mobile/screens/home/home_screen.dart';
 import 'package:medintel_mobile/screens/upload/upload_screen.dart';
 import 'package:medintel_mobile/screens/verification/verification_screen.dart';
 import 'package:medintel_mobile/screens/results/results_screen.dart';
@@ -47,12 +49,14 @@ void main() {
 
     // 1. App Title & Branding
     expect(find.text('MedIntel AI'), findsOneWidget);
-    expect(find.text('Welcome, Test Patient'), findsOneWidget);
+    expect(find.text('Welcome, Test Patient'), findsNothing);
 
     // 2. Clinical Pipeline Navigation Cards
     expect(find.text('Upload Report'), findsOneWidget);
-    expect(find.text('User Verification Gate'), findsOneWidget);
-    expect(find.text('Analysis & ML Risk'), findsOneWidget);
+    expect(find.text('Prescription Explainer'), findsOneWidget);
+    expect(find.text('OBJECTIVE 2'), findsNothing);
+    expect(find.text('User Verification Gate'), findsNothing);
+    expect(find.text('Analysis & ML Risk'), findsNothing);
     expect(find.text('History'), findsWidgets);
   });
 
@@ -89,8 +93,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Tap User Verification Gate navigation tile
-    await tester.tap(find.text('User Verification Gate'));
+    // Open VerificationScreen directly
+    Navigator.of(tester.element(find.byType(HomeScreen))).push(
+      MaterialPageRoute(builder: (_) => const VerificationScreen()),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(VerificationScreen), findsOneWidget);
@@ -108,8 +114,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Tap Analysis & ML Risk navigation tile
-    await tester.tap(find.text('Analysis & ML Risk'));
+    // Open ResultsScreen directly
+    Navigator.of(tester.element(find.byType(HomeScreen))).push(
+      MaterialPageRoute(builder: (_) => const ResultsScreen()),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(ResultsScreen), findsOneWidget);

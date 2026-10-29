@@ -31,14 +31,18 @@ class TesseractAdapter(BaseOCREngine):
         os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe"),
     ]
 
-    def __init__(self, tesseract_cmd: Optional[str] = None):
+    DEFAULT_TIMEOUT_SECONDS = 15
+
+    def __init__(self, tesseract_cmd: Optional[str] = None, timeout: int = DEFAULT_TIMEOUT_SECONDS):
         """
         Initialize TesseractAdapter.
 
         Args:
             tesseract_cmd: Optional explicit path to the tesseract executable.
+            timeout: Maximum seconds to allow for pytesseract calls (default 15s).
         """
         self._custom_cmd = tesseract_cmd
+        self.timeout = timeout
         if tesseract_cmd and PYTESSERACT_INSTALLED:
             pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
@@ -80,11 +84,12 @@ class TesseractAdapter(BaseOCREngine):
         self,
         image: Union[Path, str, bytes, Image.Image],
         page_number: int = 1,
+        timeout: Optional[int] = None,
     ) -> PageExtraction:
         """
         Extract text from an image using Tesseract OCR.
 
-        Computes confidence from word-level confidence metrics.
+        Computes confidence from word-level confidence metrics with execution timeout.
         """
         if not self.is_available():
             raise OCREngineUnavailableError(
@@ -93,6 +98,8 @@ class TesseractAdapter(BaseOCREngine):
                 "`sudo apt-get install tesseract-ocr` on Linux) and add it to your system PATH."
             )
 
+        active_timeout = timeout if timeout is not None else self.timeout
+        pil_img = None
         try:
             pil_img = self.to_pil_image(image)
             # Ensure RGB or L mode
@@ -100,7 +107,9 @@ class TesseractAdapter(BaseOCREngine):
                 pil_img = pil_img.convert("RGB")
 
             # Extract word-level data for confidence calculation
-            data = pytesseract.image_to_data(pil_img, output_type=Output.DICT)
+            data = pytesseract.image_to_data(
+                pil_img, output_type=Output.DICT, timeout=active_timeout
+            )
             
             words = []
             confidences = []
@@ -114,7 +123,7 @@ class TesseractAdapter(BaseOCREngine):
                     if conf >= 0:
                         confidences.append(conf)
 
-            full_text = pytesseract.image_to_string(pil_img).strip()
+            full_text = pytesseract.image_to_string(pil_img, timeout=active_timeout).strip()
 
             # Confidence score calculation: average of word confidences mapped to [0.0, 1.0]
             if confidences:
@@ -132,5 +141,15 @@ class TesseractAdapter(BaseOCREngine):
             )
         except OCREngineUnavailableError:
             raise
+        except (RuntimeError, TimeoutError) as e:
+            if "timeout" in str(e).lower():
+                raise OCRError(f"Tesseract OCR timed out after {active_timeout} seconds") from e
+            raise OCRError(f"Tesseract OCR extraction failed: {str(e)}") from e
         except Exception as e:
             raise OCRError(f"Tesseract OCR extraction failed: {str(e)}") from e
+        finally:
+            if pil_img is not None and pil_img is not image:
+                try:
+                    pil_img.close()
+                except Exception:
+                    pass
