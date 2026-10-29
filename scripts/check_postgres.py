@@ -36,7 +36,7 @@ def main() -> int:
     print("PostgreSQL connection string detected. Initiating Neon Postgres verification...")
 
     try:
-        from app.core.security import create_access_token, get_password_hash, verify_password
+        from app.core.security import create_access_token, hash_password, verify_password
         from app.db.session import SessionLocal, create_tables
         from app.models.models import Report, User
     except ImportError as e:
@@ -63,7 +63,7 @@ def main() -> int:
     try:
         # 2. Insert dummy user and verify auth
         print("2/5: Creating test tenant user and testing authentication...")
-        hashed = get_password_hash(plain_password)
+        hashed = hash_password(plain_password)
         dummy_user_1 = User(
             name=f"Neon Tenant 1 {unique_suffix}",
             email=test_email_1,
@@ -75,7 +75,7 @@ def main() -> int:
         db.refresh(dummy_user_1)
 
         assert verify_password(plain_password, dummy_user_1.hashed_password)
-        token = create_access_token(data={"sub": str(dummy_user_1.id)})
+        token = create_access_token(user_id=dummy_user_1.id, email=dummy_user_1.email)
         assert token and len(token) > 20
 
         # 3. Insert second user for tenant isolation testing
