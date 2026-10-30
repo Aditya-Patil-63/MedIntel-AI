@@ -1,6 +1,12 @@
+import 'package:flutter/foundation.dart';
+
 /// API Constants and Endpoint Routes for MedIntel AI Backend.
 class ApiConstants {
   ApiConstants._();
+
+  /// Production backend live on Render (free tier Docker web service)
+  static const String productionUrl =
+      'https://medintel-backend-p0nf.onrender.com';
 
   /// Connection presets for development environments:
   /// - usbDeviceUrl: Used for physical Android phones via USB cable with `adb reverse tcp:8000 tcp:8000`
@@ -10,17 +16,28 @@ class ApiConstants {
   static const String emulatorUrl = 'http://10.0.2.2:8000';
   static const String wifiLanUrl = 'http://10.20.43.105:8000';
 
-  /// Base URL configurable via --dart-define=API_BASE_URL=http://...
-  /// Default: 'http://127.0.0.1:8000' for physical phone via USB/OTG reverse port.
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: usbDeviceUrl,
-  );
+  /// Base URL configurable via --dart-define=API_BASE_URL=https://...
+  /// Defaults:
+  /// - Release builds: 'https://medintel-backend-p0nf.onrender.com'
+  /// - Debug / development builds: 'http://127.0.0.1:8000'
+  static const String baseUrl = bool.hasEnvironment('API_BASE_URL')
+      ? String.fromEnvironment('API_BASE_URL')
+      : (kReleaseMode ? productionUrl : usbDeviceUrl);
 
   // Timeouts
-  static const Duration connectTimeout = Duration(seconds: 5);
-  static const Duration receiveTimeout = Duration(seconds: 45);
-  static const Duration sendTimeout = Duration(seconds: 30);
+  // Render free tier server can take 50+ seconds to spin up from cold sleep.
+  // Release builds use 90s initial connect/receive timeout.
+  static const Duration coldStartTimeout = Duration(seconds: 90);
+  static const Duration normalConnectTimeout = Duration(seconds: 15);
+  static const Duration normalReceiveTimeout = Duration(seconds: 45);
+  static const Duration geminiReceiveTimeout = Duration(seconds: 90);
+  static const Duration defaultSendTimeout = Duration(seconds: 45);
+
+  static const Duration connectTimeout =
+      kReleaseMode ? coldStartTimeout : Duration(seconds: 10);
+  static const Duration receiveTimeout =
+      kReleaseMode ? coldStartTimeout : Duration(seconds: 45);
+  static const Duration sendTimeout = defaultSendTimeout;
 
   // Endpoints
   static const String health = '/health';

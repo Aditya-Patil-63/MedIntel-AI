@@ -103,7 +103,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
               controller: _controller,
               decoration: const InputDecoration(
                 labelText: 'Server URL',
-                hintText: 'http://127.0.0.1:8000',
+                hintText: 'https://medintel-backend-p0nf.onrender.com',
                 border: OutlineInputBorder(),
                 isDense: true,
                 prefixIcon: Icon(Icons.link, size: 20),
@@ -111,7 +111,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Select Connection Mode:',
+              'Select Connection Preset:',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -124,10 +124,10 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
               runSpacing: 6,
               children: [
                 ActionChip(
-                  avatar: const Icon(Icons.wifi, size: 16),
-                  label: const Text('Wi-Fi LAN (Auto)'),
+                  avatar: const Icon(Icons.cloud_done, size: 16, color: AppColors.primary),
+                  label: const Text('Render Cloud (Live)'),
                   onPressed: () => setState(
-                    () => _controller.text = ApiConstants.wifiLanUrl,
+                    () => _controller.text = ApiConstants.productionUrl,
                   ),
                 ),
                 ActionChip(
@@ -135,6 +135,13 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                   label: const Text('USB Cable (Phone)'),
                   onPressed: () => setState(
                     () => _controller.text = ApiConstants.usbDeviceUrl,
+                  ),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.wifi, size: 16),
+                  label: const Text('Wi-Fi LAN'),
+                  onPressed: () => setState(
+                    () => _controller.text = ApiConstants.wifiLanUrl,
                   ),
                 ),
                 ActionChip(
@@ -155,9 +162,9 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                 border: Border.all(color: AppColors.divider),
               ),
               child: const Text(
-                'Wi-Fi LAN connects directly to your computer.\n'
-                'USB Cable requires running on PC:\n'
-                'adb reverse tcp:8000 tcp:8000',
+                '• Render Cloud: Live production backend on the internet.\n'
+                '• USB Cable: Local dev with "adb reverse tcp:8000 tcp:8000".\n'
+                '• Wi-Fi LAN / Emulator: For local development.',
                 style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
               ),
             ),

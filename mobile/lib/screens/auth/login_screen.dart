@@ -415,6 +415,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                       ),
                               ),
+                              if (isLoading) ...[
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'Waking up the server, this can take up to a minute...',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 18),
 
                               // Divider with OR

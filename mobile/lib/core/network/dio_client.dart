@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
 import '../errors/api_exception.dart';
+import 'server_url_storage.dart';
 
 /// Configured Dio HTTP client singleton for MedIntel AI.
 ///
@@ -9,14 +11,32 @@ import '../errors/api_exception.dart';
 /// set the appropriate multipart boundary.
 class DioClient {
   static String? _configuredBaseUrl;
+  static bool _hasSuccessfulRequest = false;
 
   /// Globally active base URL for HTTP requests.
-  static String get activeBaseUrl =>
-      _configuredBaseUrl ?? ApiConstants.baseUrl;
+  static String get activeBaseUrl {
+    if (_configuredBaseUrl != null && _configuredBaseUrl!.isNotEmpty) {
+      return _configuredBaseUrl!;
+    }
+    final saved = ServerUrlStorage.getSavedUrlSync();
+    if (saved != null && saved.isNotEmpty) {
+      _configuredBaseUrl = saved;
+      return saved;
+    }
+    return ApiConstants.baseUrl;
+  }
 
   /// Sets the active base URL for new and existing instances.
   static void setActiveBaseUrl(String url) {
     _configuredBaseUrl = url.trim();
+  }
+
+  /// Whether at least one request has succeeded (used to manage cold-start timeouts).
+  static bool get hasSuccessfulRequest => _hasSuccessfulRequest;
+
+  /// Resets cold-start request state (useful for tests).
+  static void resetRequestState() {
+    _hasSuccessfulRequest = false;
   }
 
   late final Dio dio;
@@ -42,7 +62,7 @@ class DioClient {
       ),
     );
 
-    // Logging & Error Transformation Interceptor
+    // Logging & Error Transformation Interceptor with automatic connection-timeout retry
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -50,9 +70,60 @@ class DioClient {
           handler.next(options);
         },
         onResponse: (response, handler) {
+          if (!_hasSuccessfulRequest) {
+            _hasSuccessfulRequest = true;
+            // Switch to normal operational timeouts for subsequent requests in release mode
+            if (kReleaseMode) {
+              dio.options.connectTimeout = ApiConstants.normalConnectTimeout;
+              dio.options.receiveTimeout = ApiConstants.normalReceiveTimeout;
+            }
+          }
           handler.next(response);
         },
-        onError: (DioException e, handler) {
+        onError: (DioException e, handler) async {
+          final isConnectionTimeout =
+              e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.connectionError;
+
+          final hasRetried = e.requestOptions.extra['has_retried'] == true;
+
+          // Free tier Render server sleeps when idle (cold start can take 50+ seconds).
+          // Attempt exactly 1 automatic retry on connection timeout with generous cold-start timeout.
+          if (isConnectionTimeout && !hasRetried) {
+            e.requestOptions.extra['has_retried'] = true;
+            e.requestOptions.connectTimeout = ApiConstants.coldStartTimeout;
+            e.requestOptions.receiveTimeout = ApiConstants.coldStartTimeout;
+            try {
+              final response = await dio.fetch(e.requestOptions);
+              if (!_hasSuccessfulRequest) {
+                _hasSuccessfulRequest = true;
+                if (kReleaseMode) {
+                  dio.options.connectTimeout = ApiConstants.normalConnectTimeout;
+                  dio.options.receiveTimeout = ApiConstants.normalReceiveTimeout;
+                }
+              }
+              return handler.resolve(response);
+            } on DioException catch (retryErr) {
+              final transformed = _mapDioException(retryErr);
+              return handler.reject(
+                DioException(
+                  requestOptions: retryErr.requestOptions,
+                  response: retryErr.response,
+                  type: retryErr.type,
+                  error: transformed,
+                ),
+              );
+            } catch (err) {
+              return handler.reject(
+                DioException(
+                  requestOptions: e.requestOptions,
+                  type: e.type,
+                  error: ApiException(message: err.toString()),
+                ),
+              );
+            }
+          }
+
           final transformed = _mapDioException(e);
           handler.reject(
             DioException(
@@ -83,7 +154,8 @@ class DioClient {
       return NetworkException(
         message:
             'Unable to connect to MedIntel AI server ($currentUrl). '
-            'Please ensure the FastAPI backend is running and your connection mode is set correctly.',
+            'The cloud server may still be waking up from idle sleep (can take up to a minute). '
+            'Please tap Retry to try again.',
         details: e.type.toString(),
       );
     }

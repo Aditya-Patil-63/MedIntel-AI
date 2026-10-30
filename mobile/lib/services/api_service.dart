@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../core/constants/api_constants.dart';
 import '../core/errors/api_exception.dart';
 import '../core/network/dio_client.dart';
+import '../core/network/server_url_storage.dart';
 import '../models/extraction/document_extraction_result.dart';
 import '../models/genai/genai_explain_request.dart';
 import '../models/genai/genai_explain_response.dart';
@@ -149,6 +151,7 @@ class ApiServiceImpl implements ApiService {
     final sanitized = newUrl.trim();
     _dio.options.baseUrl = sanitized;
     DioClient.setActiveBaseUrl(sanitized);
+    ServerUrlStorage.saveUrl(sanitized);
   }
 
   Future<T> _withNetworkFallback<T>(Future<T> Function() call) async {
@@ -156,7 +159,11 @@ class ApiServiceImpl implements ApiService {
       return await call();
     } on DioException catch (e) {
       final unwrapped = _unwrapException(e);
-      if (unwrapped is NetworkException) {
+      // In release builds or when connected to production / HTTPS, do not fallback to local dev ports.
+      // Only rotate between local candidate URLs during local development.
+      if (unwrapped is NetworkException &&
+          !kReleaseMode &&
+          ServerUrlStorage.isLocalUrl(_dio.options.baseUrl)) {
         final currentBase = _dio.options.baseUrl;
         final candidates = [
           ApiConstants.usbDeviceUrl,
@@ -211,11 +218,13 @@ class ApiServiceImpl implements ApiService {
         queryParams['engine'] = engine;
       }
 
-      // Dio automatically sets multipart/form-data with proper boundary
+      // Dio automatically sets multipart/form-data with proper boundary.
+      // Document OCR extraction and cold start require generous receive timeout (>= 90s).
       final response = await _dio.post(
         ApiConstants.extract,
         data: formData,
         queryParameters: queryParams.isNotEmpty ? queryParams : null,
+        options: Options(receiveTimeout: ApiConstants.geminiReceiveTimeout),
       );
 
       return DocumentExtractionResult.fromJson(
@@ -223,7 +232,9 @@ class ApiServiceImpl implements ApiService {
       );
     } on DioException catch (e) {
       final unwrapped = _unwrapException(e);
-      if (unwrapped is NetworkException) {
+      if (unwrapped is NetworkException &&
+          !kReleaseMode &&
+          ServerUrlStorage.isLocalUrl(_dio.options.baseUrl)) {
         final currentBase = _dio.options.baseUrl;
         final altBase = currentBase == ApiConstants.usbDeviceUrl
             ? ApiConstants.wifiLanUrl
@@ -365,7 +376,10 @@ class ApiServiceImpl implements ApiService {
       final response = await _dio.post(
         ApiConstants.genaiExplain,
         data: request.toJson(),
-        options: Options(contentType: 'application/json'),
+        options: Options(
+          contentType: 'application/json',
+          receiveTimeout: ApiConstants.geminiReceiveTimeout,
+        ),
       );
       return GenAIExplainResponse.fromJson(
         response.data as Map<String, dynamic>,
@@ -563,7 +577,10 @@ class ApiServiceImpl implements ApiService {
       final response = await _dio.post(
         ApiConstants.prescriptionExplain,
         data: request.toJson(),
-        options: Options(contentType: 'application/json'),
+        options: Options(
+          contentType: 'application/json',
+          receiveTimeout: ApiConstants.geminiReceiveTimeout,
+        ),
       );
       return PrescriptionExplainResponse.fromJson(
         response.data as Map<String, dynamic>,
@@ -591,7 +608,10 @@ class ApiServiceImpl implements ApiService {
       final response = await _dio.post(
         ApiConstants.prescriptionExtractAndExplain,
         data: formData,
-        options: Options(contentType: 'multipart/form-data'),
+        options: Options(
+          contentType: 'multipart/form-data',
+          receiveTimeout: ApiConstants.geminiReceiveTimeout,
+        ),
       );
       return PrescriptionExplainResponse.fromJson(
         response.data as Map<String, dynamic>,

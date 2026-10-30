@@ -130,26 +130,40 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         border: Border.all(
                             color: AppColors.primary.withValues(alpha: 0.3)),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(
-                              state.loadingStage ??
-                                  'Analyzing clinical measurements...',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryDark,
+                          Row(
+                            children: [
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: AppColors.primary,
+                                ),
                               ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  state.loadingStage ??
+                                      'Analyzing clinical measurements...',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Waking up the server, this can take up to a minute if idle...',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ],
@@ -194,6 +208,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
                               color: AppColors.textPrimary,
                             ),
                           ),
+                          if (state.snapshot != null) ...[
+                            const SizedBox(height: 14),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: const Text('Retry Analysis'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.critical,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => context
+                                  .read<AnalysisCubit>()
+                                  .runFullAnalysis(state.snapshot!),
+                            ),
+                          ],
                         ],
                       ),
                     ),

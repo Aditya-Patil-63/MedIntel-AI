@@ -358,9 +358,13 @@ class UploadScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Please wait a moment while the clinical parser runs.',
+            'Please wait a moment while the clinical parser runs.\n(Waking up the server, this can take up to a minute if idle...)',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              height: 1.35,
+            ),
           ),
         ],
       ),
